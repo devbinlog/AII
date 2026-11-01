@@ -1,3 +1,5 @@
+// force-dynamic: ID-based lookup uses getRepository() which returns in-memory mock data.
+// Static params cannot be determined at build time in MOCK_ONLY mode.
 export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";

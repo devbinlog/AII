@@ -1,3 +1,6 @@
+// force-dynamic: getRepository() accesses in-memory mock adapter (Node.js singleton).
+// The adapter's state is mutable at runtime, so static generation would produce stale HTML.
+// In production mode, a real data layer would allow static generation with revalidation.
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";

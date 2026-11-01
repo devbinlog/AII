@@ -3,6 +3,26 @@
  * In-memory implementations of all repository interfaces.
  * MUST NOT be activated in production builds.
  * Supports the full user flow without any real services.
+ *
+ * ## Persistence Constraints
+ *
+ * - **Server restart**: All mutations (creates, updates, deletes) are lost on restart.
+ *   The store is re-initialized from fixtures each time the module is loaded.
+ *
+ * - **Concurrent requests**: The store is a single in-process object. Concurrent
+ *   requests in the same Node.js instance share state (no locking). This is fine
+ *   for local dev but would be a data hazard in multi-threaded environments.
+ *
+ * - **Multi-instance (e.g. Vercel serverless)**: Each function instance gets its own
+ *   in-memory store. Mutations in one instance are invisible to others. Do NOT use
+ *   MOCK_ONLY mode in production serverless deployments.
+ *
+ * - **Hot-reload (Next.js dev)**: Module-level state persists across HMR boundaries
+ *   (the module is not re-evaluated unless the file itself changes). If fixtures
+ *   change, restart the dev server to reset state.
+ *
+ * - **Test isolation**: Call `resetRepository()` from `@/lib/repository` between
+ *   tests to get a fresh store. Never rely on test-order-dependent mock state.
  */
 
 import type {

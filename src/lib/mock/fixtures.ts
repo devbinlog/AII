@@ -8,6 +8,7 @@ import type {
   Artist,
   Campaign,
   Experience,
+  ExperienceVersion,
   FanArtwork,
   MediaAsset,
   Release,
@@ -26,12 +27,12 @@ export const MOCK_IDS = {
   // Users
   USER_FAN_1: "usr_fan_001",
   USER_FAN_2: "usr_fan_002",
-  USER_ARTIST_FREEPOLUS: "usr_art_001",
+  USER_ARTIST_FREEFALLERS: "usr_art_001",
   USER_PLATFORM_ADMIN: "usr_adm_001",
   USER_PLATFORM_OWNER: "usr_own_001",
 
   // Artists
-  ARTIST_FREEPOLUS: "art_001",
+  ARTIST_FREEFALLERS: "art_001",
 
   // Releases
   RELEASE_MOONWAVE: "rel_001",
@@ -59,7 +60,7 @@ export const MOCK_IDS = {
   // Assets
   ASSET_COVER_MOONWAVE: "ast_001",
   ASSET_AUDIO_MOONWAVE_01: "ast_002",
-  ASSET_FREEPOLUS_LOGO: "ast_003",
+  ASSET_FREEFALLERS_LOGO: "ast_003",
 } as const;
 
 // ============================================================
@@ -88,12 +89,12 @@ export const MOCK_USERS: User[] = [
     updatedAt: "2026-02-01T09:30:00Z",
   },
   {
-    id: MOCK_IDS.USER_ARTIST_FREEPOLUS,
-    email: "studio@freepolus.com",
-    displayName: "FREEPOLUS Studio",
+    id: MOCK_IDS.USER_ARTIST_FREEFALLERS,
+    email: "studio@freefallers.com",
+    displayName: "Freefallers Studio",
     avatarUrl: null,
     role: "artist_admin",
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     createdAt: "2025-12-01T00:00:00Z",
     updatedAt: "2025-12-01T00:00:00Z",
   },
@@ -125,10 +126,10 @@ export const MOCK_USERS: User[] = [
 
 export const MOCK_ARTISTS: Artist[] = [
   {
-    id: MOCK_IDS.ARTIST_FREEPOLUS,
-    slug: "freepolus",
-    name: "FREEPOLUS",
-    bio: "FREEPOLUS는 서울을 기반으로 활동하는 독립 음악 아티스트입니다. 전자음악, 앰비언트, 실험적 사운드를 결합한 독특한 음악 세계를 구축하고 있습니다.",
+    id: MOCK_IDS.ARTIST_FREEFALLERS,
+    slug: "freefallers",
+    name: "Freefallers",
+    bio: "Freefallers는 서울을 기반으로 활동하는 독립 음악 아티스트입니다. 전자음악, 앰비언트, 실험적 사운드를 결합한 독특한 음악 세계를 구축하고 있습니다.",
     genre: ["electronic", "ambient", "experimental"],
     branding: {
       primaryColor: "#e8192c",
@@ -141,8 +142,8 @@ export const MOCK_ARTISTS: Artist[] = [
       motionPreset: "expressive",
     },
     socialLinks: {
-      instagram: "https://instagram.com/freepolus",
-      spotify: "https://open.spotify.com/artist/freepolus",
+      instagram: "https://instagram.com/freefallers",
+      spotify: "https://open.spotify.com/artist/freefallers",
     },
     status: "active",
     isVerified: true,
@@ -192,7 +193,7 @@ export const MOCK_TRACKS: Track[] = [
 export const MOCK_RELEASES: Release[] = [
   {
     id: MOCK_IDS.RELEASE_MOONWAVE,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     type: "ep",
     title: "Moonwave EP",
     description: "바다의 파장처럼 밀려오는 전자음악 EP. 달빛 아래의 고요함과 깊은 내면의 울림을 담았습니다.",
@@ -207,7 +208,7 @@ export const MOCK_RELEASES: Release[] = [
   },
   {
     id: MOCK_IDS.RELEASE_STATIC_DREAMS,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     type: "single",
     title: "Static Dreams",
     description: "정적 속에서 피어나는 꿈. 실험적인 소음 미학과 서정적 멜로디의 만남.",
@@ -243,7 +244,7 @@ function makeEmptySchema(sceneId: string, canvasWidth = 1920, canvasHeight = 108
 export const MOCK_SCENES: Scene[] = [
   {
     id: MOCK_IDS.SCENE_WAVEFORM_HERO,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     experienceId: MOCK_IDS.EXPERIENCE_MOONWAVE_MAIN,
     name: "Waveform Hero",
     description: "오디오 반응형 파형 시각화 메인 씬",
@@ -322,7 +323,7 @@ export const MOCK_SCENES: Scene[] = [
           },
           data: {
             type: "text",
-            content: "FREEPOLUS",
+            content: "Freefallers",
           },
           visible: true,
           locked: false,
@@ -352,7 +353,7 @@ export const MOCK_SCENES: Scene[] = [
   },
   {
     id: MOCK_IDS.SCENE_PARTICLE_BURST,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     experienceId: MOCK_IDS.EXPERIENCE_MOONWAVE_MAIN,
     name: "Particle Burst",
     description: "클릭 시 파티클이 폭발하는 인터랙티브 씬",
@@ -434,7 +435,7 @@ export const MOCK_SCENES: Scene[] = [
 export const MOCK_EXPERIENCES: Experience[] = [
   {
     id: MOCK_IDS.EXPERIENCE_MOONWAVE_MAIN,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     releaseId: MOCK_IDS.RELEASE_MOONWAVE,
     title: "Moonwave Experience",
     description: "Moonwave EP의 인터랙티브 음악 경험. 오디오 시각화와 팬 참여 아트워크를 통해 음악을 새롭게 체험하세요.",
@@ -453,11 +454,68 @@ export const MOCK_EXPERIENCES: Experience[] = [
         transitionDuration: 600,
       },
     ],
+    editableParameters: [
+      {
+        id: "ep_001",
+        sceneId: MOCK_IDS.SCENE_WAVEFORM_HERO,
+        objectId: "obj_wf_001",
+        property: "style.fill",
+        label: "Waveform Color",
+        type: "color",
+        defaultValue: "#e8192c",
+      },
+      {
+        id: "ep_002",
+        sceneId: MOCK_IDS.SCENE_WAVEFORM_HERO,
+        objectId: "obj_txt_001",
+        property: "transform.opacity",
+        label: "Title Opacity",
+        type: "number",
+        defaultValue: 1,
+        min: 0,
+        max: 1,
+      },
+      {
+        id: "ep_003",
+        sceneId: MOCK_IDS.SCENE_PARTICLE_BURST,
+        objectId: "obj_pt_001",
+        property: "style.fill",
+        label: "Particle Color",
+        type: "color",
+        defaultValue: "#e8192c",
+      },
+    ],
     status: "published",
     currentVersionId: "expv_001",
     totalPlayCount: 2847,
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
+  },
+];
+
+// ============================================================
+// Experience Versions
+// ============================================================
+
+export const MOCK_EXPERIENCE_VERSIONS: ExperienceVersion[] = [
+  {
+    id: "expv_001",
+    experienceId: MOCK_IDS.EXPERIENCE_MOONWAVE_MAIN,
+    version: "1.0.0",
+    schemaVersions: {
+      [MOCK_IDS.SCENE_WAVEFORM_HERO]: "1.0.0",
+      [MOCK_IDS.SCENE_PARTICLE_BURST]: "1.0.0",
+    },
+    snapshot: {
+      scenes: [
+        { sceneId: MOCK_IDS.SCENE_WAVEFORM_HERO, order: 0, transitionType: "fade", transitionDuration: 800 },
+        { sceneId: MOCK_IDS.SCENE_PARTICLE_BURST, order: 1, transitionType: "fade", transitionDuration: 600 },
+      ],
+      sceneSchemas: {} as Record<string, import("@/types/domain").SceneSchema>, // populated lazily from MOCK_SCENES
+    },
+    rendererVersion: "1.0.0",
+    publishedAt: "2026-09-15T00:00:00Z",
+    publishedBy: MOCK_IDS.USER_ARTIST_FREEFALLERS,
   },
 ];
 
@@ -468,10 +526,11 @@ export const MOCK_EXPERIENCES: Experience[] = [
 export const MOCK_CAMPAIGNS: Campaign[] = [
   {
     id: MOCK_IDS.CAMPAIGN_MOONWAVE_FAN,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    slug: "moonwave-fan-artwork",
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     experienceId: MOCK_IDS.EXPERIENCE_MOONWAVE_MAIN,
     title: "Moonwave Fan Artwork",
-    description: "Moonwave EP를 경험하고 당신만의 아트워크를 만들어보세요. 가장 인상적인 작품은 FREEPOLUS 공식 채널에 소개됩니다.",
+    description: "Moonwave EP를 경험하고 당신만의 아트워크를 만들어보세요. 가장 인상적인 작품은 Freefallers 공식 채널에 소개됩니다.",
     branding: {
       primaryColor: "#e8192c",
       backgroundColor: "#0a0a0a",
@@ -512,13 +571,17 @@ export const MOCK_ARTWORKS: FanArtwork[] = [
     imageUrl: null,
     customization: {
       versionId: "expv_001",
+      editableParameters: { ep_001: "#e8192c", ep_002: 1, ep_003: "#e8192c" },
       sceneStates: {},
       captureFrameMs: 4500,
+      deterministicSeed: 42,
     },
     permission: "public",
     status: "published",
+    moderationStatus: "approved",
     likeCount: 34,
     shareCount: 8,
+    likedBy: [],
     createdAt: "2026-10-05T14:32:00Z",
     updatedAt: "2026-10-05T14:32:00Z",
   },
@@ -532,13 +595,17 @@ export const MOCK_ARTWORKS: FanArtwork[] = [
     imageUrl: null,
     customization: {
       versionId: "expv_001",
+      editableParameters: { ep_001: "#3b82f6", ep_002: 0.8, ep_003: "#3b82f6" },
       sceneStates: {},
       captureFrameMs: 7200,
+      deterministicSeed: 137,
     },
     permission: "public",
     status: "published",
+    moderationStatus: "approved",
     likeCount: 19,
     shareCount: 4,
+    likedBy: [],
     createdAt: "2026-10-07T09:15:00Z",
     updatedAt: "2026-10-07T09:15:00Z",
   },
@@ -551,7 +618,7 @@ export const MOCK_ARTWORKS: FanArtwork[] = [
 export const MOCK_ASSETS: MediaAsset[] = [
   {
     id: MOCK_IDS.ASSET_COVER_MOONWAVE,
-    artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+    artistId: MOCK_IDS.ARTIST_FREEFALLERS,
     type: "image",
     filename: "moonwave-ep-cover.jpg",
     mimeType: "image/jpeg",
@@ -561,7 +628,7 @@ export const MOCK_ASSETS: MediaAsset[] = [
     altText: "Moonwave EP Cover Art",
     tags: ["cover", "release"],
     usedIn: [{ releaseId: MOCK_IDS.RELEASE_MOONWAVE }],
-    uploadedBy: MOCK_IDS.USER_ARTIST_FREEPOLUS,
+    uploadedBy: MOCK_IDS.USER_ARTIST_FREEFALLERS,
     createdAt: "2026-08-20T00:00:00Z",
   },
 ];

@@ -37,6 +37,7 @@ import type {
   CreateReleaseRequest,
   CreateSceneRequest,
   Experience,
+  ExperienceVersion,
   FanArtwork,
   MediaAsset,
   PaginationQuery,
@@ -65,6 +66,7 @@ import {
   MOCK_ARTWORKS,
   MOCK_ASSETS,
   MOCK_CAMPAIGNS,
+  MOCK_EXPERIENCE_VERSIONS,
   MOCK_EXPERIENCES,
   MOCK_RELEASES,
   MOCK_SCENES,
@@ -104,6 +106,7 @@ const store = {
   releases: [...MOCK_RELEASES] as Release[],
   scenes: [...MOCK_SCENES] as Scene[],
   experiences: [...MOCK_EXPERIENCES] as Experience[],
+  experienceVersions: [...MOCK_EXPERIENCE_VERSIONS] as ExperienceVersion[],
   campaigns: [...MOCK_CAMPAIGNS] as Campaign[],
   artworks: [...MOCK_ARTWORKS] as FanArtwork[],
   assets: [...MOCK_ASSETS] as MediaAsset[],
@@ -129,7 +132,7 @@ const mockAuth: AuthRepository = {
     };
     const token = `mock_session_${user.id}_${Date.now()}`;
     store.sessions.set(token, session);
-    return { user, session };
+    return { user, session, sessionToken: token };
   },
 
   async signOut(sessionToken) {
@@ -405,9 +408,15 @@ const mockExperience: ExperienceRepository = {
   },
 
   async findVersionById(versionId) {
-    // Mock: not storing full versions, return null
-    void versionId;
-    return null;
+    const version = store.experienceVersions.find((v) => v.id === versionId) ?? null;
+    if (!version) return null;
+    // Populate sceneSchemas lazily from store
+    const sceneSchemas: Record<string, import("@/types/domain").SceneSchema> = {};
+    for (const es of version.snapshot.scenes) {
+      const scene = store.scenes.find((s) => s.id === es.sceneId);
+      if (scene) sceneSchemas[es.sceneId] = scene.schema;
+    }
+    return { ...version, snapshot: { ...version.snapshot, sceneSchemas } };
   },
 
   async listByArtist(artistId, query) {
@@ -425,6 +434,7 @@ const mockExperience: ExperienceRepository = {
       description: data.description,
       coverImageUrl: null,
       scenes: [],
+      editableParameters: [],
       status: "draft",
       currentVersionId: null,
       totalPlayCount: 0,
@@ -451,17 +461,23 @@ const mockExperience: ExperienceRepository = {
       status: "published",
       currentVersionId: versionId,
     });
-    // Return a mock ExperienceVersion
-    return {
+    const sceneSchemas: Record<string, import("@/types/domain").SceneSchema> = {};
+    for (const es of exp.scenes) {
+      const scene = store.scenes.find((s) => s.id === es.sceneId);
+      if (scene) sceneSchemas[es.sceneId] = scene.schema;
+    }
+    const version: ExperienceVersion = {
       id: versionId,
       experienceId: id,
       version: "1.0.0",
       schemaVersions: {},
-      snapshot: { scenes: exp.scenes, sceneSchemas: {} },
+      snapshot: { scenes: exp.scenes, sceneSchemas },
       rendererVersion: "1.0.0",
       publishedAt: now(),
       publishedBy,
     };
+    store.experienceVersions.push(version);
+    return version;
   },
 
   async delete(id) {
@@ -490,6 +506,10 @@ const mockCampaign: CampaignRepository = {
     return store.campaigns.find((c) => c.id === id) ?? null;
   },
 
+  async findBySlug(slug) {
+    return store.campaigns.find((c) => c.slug === slug) ?? null;
+  },
+
   async listByArtist(artistId, query) {
     const items = store.campaigns.filter((c) => c.artistId === artistId);
     const { items: campaigns, total } = paginate(items, query);
@@ -506,6 +526,7 @@ const mockCampaign: CampaignRepository = {
   async create(data: CreateCampaignRequest) {
     const campaign: Campaign = {
       id: newId("cmp"),
+      slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
       artistId: data.artistId,
       experienceId: data.experienceId,
       title: data.title,
@@ -595,8 +616,10 @@ const mockArtwork: ArtworkRepository = {
       customization: data.customization,
       permission: "private",
       status: "draft",
+      moderationStatus: "pending",
       likeCount: 0,
       shareCount: 0,
+      likedBy: [],
       createdAt: now(),
       updatedAt: now(),
     };
@@ -628,6 +651,16 @@ const mockArtwork: ArtworkRepository = {
     return count;
   },
 
+  async delete(id, requestorId) {
+    const artwork = store.artworks.find((a) => a.id === id);
+    if (!artwork) throw new Error("ARTWORK_NOT_FOUND");
+    if (artwork.creatorId !== null && artwork.creatorId !== requestorId) {
+      throw new Error("FORBIDDEN");
+    }
+    const idx = store.artworks.findIndex((a) => a.id === id);
+    if (idx !== -1) store.artworks.splice(idx, 1);
+  },
+
   async flag(id, _reason, _reportedBy) {
     await mockArtwork.update(id, { status: "flagged" });
   },
@@ -642,9 +675,11 @@ const mockArtwork: ArtworkRepository = {
       store.likes.add(key);
       const idx = store.artworks.findIndex((a) => a.id === id);
       if (idx !== -1 && store.artworks[idx]) {
+        const prev = store.artworks[idx]!;
         store.artworks[idx] = {
-          ...store.artworks[idx]!,
-          likeCount: store.artworks[idx]!.likeCount + 1,
+          ...prev,
+          likeCount: prev.likeCount + 1,
+          likedBy: [...prev.likedBy, userId],
         };
       }
     }
@@ -656,9 +691,11 @@ const mockArtwork: ArtworkRepository = {
       store.likes.delete(key);
       const idx = store.artworks.findIndex((a) => a.id === id);
       if (idx !== -1 && store.artworks[idx]) {
+        const prev = store.artworks[idx]!;
         store.artworks[idx] = {
-          ...store.artworks[idx]!,
-          likeCount: Math.max(0, store.artworks[idx]!.likeCount - 1),
+          ...prev,
+          likeCount: Math.max(0, prev.likeCount - 1),
+          likedBy: prev.likedBy.filter((uid) => uid !== userId),
         };
       }
     }

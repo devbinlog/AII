@@ -30,11 +30,10 @@ describe("MockAuthRepository", () => {
   });
 
   it("returns session after sign in", async () => {
-    const { session } = await mockRegistry.auth.signIn("fan1@example.com", "any");
-    const token = `mock_session_${MOCK_IDS.USER_FAN_1}`;
-    // Session token is generated dynamically, so we verify indirectly
+    const { session, sessionToken } = await mockRegistry.auth.signIn("fan1@example.com", "any");
     expect(session.userId).toBe(MOCK_IDS.USER_FAN_1);
     expect(session.role).toBe("fan");
+    expect(sessionToken).toMatch(/^mock_session_/);
   });
 
   it("creates a new user", async () => {
@@ -63,15 +62,15 @@ describe("MockAuthRepository", () => {
 // ============================================================
 
 describe("MockArtistRepository", () => {
-  it("finds FREEPOLUS by id", async () => {
-    const artist = await mockRegistry.artist.findById(MOCK_IDS.ARTIST_FREEPOLUS);
-    expect(artist?.slug).toBe("freepolus");
-    expect(artist?.name).toBe("FREEPOLUS");
+  it("finds Freefallers by id", async () => {
+    const artist = await mockRegistry.artist.findById(MOCK_IDS.ARTIST_FREEFALLERS);
+    expect(artist?.slug).toBe("freefallers");
+    expect(artist?.name).toBe("Freefallers");
   });
 
-  it("finds FREEPOLUS by slug", async () => {
-    const artist = await mockRegistry.artist.findBySlug("freepolus");
-    expect(artist?.id).toBe(MOCK_IDS.ARTIST_FREEPOLUS);
+  it("finds Freefallers by slug", async () => {
+    const artist = await mockRegistry.artist.findBySlug("freefallers");
+    expect(artist?.id).toBe(MOCK_IDS.ARTIST_FREEFALLERS);
   });
 
   it("returns null for unknown artist", async () => {
@@ -94,7 +93,7 @@ describe("MockArtistRepository", () => {
   });
 
   it("slug availability check works", async () => {
-    expect(await mockRegistry.artist.checkSlugAvailable("freepolus")).toBe(false);
+    expect(await mockRegistry.artist.checkSlugAvailable("freefallers")).toBe(false);
     expect(await mockRegistry.artist.checkSlugAvailable("available-slug")).toBe(true);
   });
 });
@@ -112,7 +111,7 @@ describe("MockReleaseRepository", () => {
 
   it("lists releases by artist", async () => {
     const { releases, total } = await mockRegistry.release.listByArtist(
-      MOCK_IDS.ARTIST_FREEPOLUS,
+      MOCK_IDS.ARTIST_FREEFALLERS,
       {}
     );
     expect(releases.length).toBeGreaterThan(0);
@@ -121,7 +120,7 @@ describe("MockReleaseRepository", () => {
 
   it("creates a new release", async () => {
     const release = await mockRegistry.release.create({
-      artistId: MOCK_IDS.ARTIST_FREEPOLUS,
+      artistId: MOCK_IDS.ARTIST_FREEFALLERS,
       type: "single",
       title: "New Single",
       description: "Test single",
@@ -140,7 +139,7 @@ describe("MockCampaignRepository", () => {
   it("finds active campaign", async () => {
     const campaign = await mockRegistry.campaign.findById(MOCK_IDS.CAMPAIGN_MOONWAVE_FAN);
     expect(campaign?.status).toBe("active");
-    expect(campaign?.artistId).toBe(MOCK_IDS.ARTIST_FREEPOLUS);
+    expect(campaign?.artistId).toBe(MOCK_IDS.ARTIST_FREEFALLERS);
   });
 
   it("lists public campaigns", async () => {
@@ -173,8 +172,10 @@ describe("MockArtworkRepository", () => {
       title: "Anonymous Artwork",
       customization: {
         versionId: "expv_001",
+        editableParameters: {},
         sceneStates: {},
         captureFrameMs: 3000,
+        deterministicSeed: 1,
       },
       sessionToken: "test_session_token_123",
     });
@@ -189,7 +190,7 @@ describe("MockArtworkRepository", () => {
       campaignId: MOCK_IDS.CAMPAIGN_MOONWAVE_FAN,
       experienceVersionId: "expv_001",
       title: "To Be Claimed",
-      customization: { versionId: "expv_001", sceneStates: {}, captureFrameMs: 0 },
+      customization: { versionId: "expv_001", editableParameters: {}, sceneStates: {}, captureFrameMs: 0, deterministicSeed: 1 },
       sessionToken: "claim_me_session",
     });
 

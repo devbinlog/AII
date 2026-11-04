@@ -257,8 +257,8 @@ function CampaignPreview({ campaign }: { campaign: Campaign }) {
 export default async function HomePage() {
   const repo = getRepository();
   const [featuredArtist, releaseResult, campaignResult] = await Promise.all([
-    repo.artist.findById(MOCK_IDS.ARTIST_FREEPOLUS),
-    repo.release.listByArtist(MOCK_IDS.ARTIST_FREEPOLUS, { page: 1, pageSize: 2 }),
+    repo.artist.findById(MOCK_IDS.ARTIST_FREEFALLERS),
+    repo.release.listByArtist(MOCK_IDS.ARTIST_FREEFALLERS, { page: 1, pageSize: 2 }),
     repo.campaign.listPublic({ page: 1, pageSize: 1, status: "active" }),
   ]);
 

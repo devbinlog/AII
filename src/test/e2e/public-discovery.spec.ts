@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-// Public Discovery Flow: Home → Explore → FREEPOLUS Artist Profile → Release Detail → Campaign Preview
+// Public Discovery Flow: Home → Explore → Freefallers Artist Profile → Release Detail → Campaign Preview
 
 test.describe("Home page", () => {
   test.beforeEach(async ({ page }) => {
@@ -43,9 +43,9 @@ test.describe("Explore page", () => {
     await expect(page.getByRole("heading", { name: /explore/i })).toBeVisible();
   });
 
-  test("shows Artists tab with FREEPOLUS", async ({ page }) => {
+  test("shows Artists tab with Freefallers", async ({ page }) => {
     await expect(page.getByRole("button", { name: /artists/i })).toBeVisible();
-    await expect(page.getByText("FREEPOLUS")).toBeVisible();
+    await expect(page.getByText("Freefallers")).toBeVisible();
   });
 
   test("shows Releases tab with mock data", async ({ page }) => {
@@ -62,8 +62,8 @@ test.describe("Explore page", () => {
   test("search filters artists", async ({ page }) => {
     const searchInput = page.getByRole("searchbox");
     await expect(searchInput).toBeVisible();
-    await searchInput.fill("FREEPOLUS");
-    await expect(page.getByText("FREEPOLUS")).toBeVisible();
+    await searchInput.fill("Freefallers");
+    await expect(page.getByText("Freefallers")).toBeVisible();
   });
 
   test("search with no match shows empty state", async ({ page }) => {
@@ -78,19 +78,19 @@ test.describe("Explore page", () => {
   });
 
   test("clicking artist card navigates to artist profile", async ({ page }) => {
-    await page.getByText("FREEPOLUS").first().click();
-    await expect(page).toHaveURL(/\/artists\/freepolus/);
+    await page.getByText("Freefallers").first().click();
+    await expect(page).toHaveURL(/\/artists\/freefallers/);
   });
 });
 
-test.describe("Artist Profile — FREEPOLUS", () => {
+test.describe("Artist Profile — Freefallers", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/artists/freepolus");
+    await page.goto("/artists/freefallers");
   });
 
   test("renders artist name in heading", async ({ page }) => {
-    await expect(page).toHaveTitle(/FREEPOLUS/);
-    await expect(page.getByRole("heading", { name: /FREEPOLUS/i })).toBeVisible();
+    await expect(page).toHaveTitle(/Freefallers/);
+    await expect(page.getByRole("heading", { name: /Freefallers/i })).toBeVisible();
   });
 
   test("shows verified badge", async ({ page }) => {
@@ -161,9 +161,9 @@ test.describe("Release Detail — Moonwave EP", () => {
     await expect(page.getByRole("heading", { name: /MOONWAVE EP/i })).toBeVisible();
   });
 
-  test("shows artist link to FREEPOLUS", async ({ page }) => {
-    // Multiple links may contain "FREEPOLUS" (header link + bottom nav link)
-    await expect(page.getByRole("link", { name: /FREEPOLUS/i }).first()).toBeVisible();
+  test("shows artist link to Freefallers", async ({ page }) => {
+    // Multiple links may contain "Freefallers" (header link + bottom nav link)
+    await expect(page.getByRole("link", { name: /Freefallers/i }).first()).toBeVisible();
   });
 
   test("shows release metadata (type, status, date)", async ({ page }) => {
@@ -225,7 +225,7 @@ test.describe("Release Detail — Moonwave EP", () => {
 });
 
 test.describe("Full navigation flow", () => {
-  test("Home → Explore → FREEPOLUS Profile → Moonwave EP Detail", async ({ page }) => {
+  test("Home → Explore → Freefallers Profile → Moonwave EP Detail", async ({ page }) => {
     // 1. Home
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "AII" })).toBeVisible();
@@ -235,10 +235,10 @@ test.describe("Full navigation flow", () => {
     await expect(page).toHaveURL("/explore");
     await expect(page.getByRole("heading", { name: /explore/i })).toBeVisible();
 
-    // 3. Click FREEPOLUS artist card
-    await page.getByText("FREEPOLUS").first().click();
-    await expect(page).toHaveURL("/artists/freepolus");
-    await expect(page.getByRole("heading", { name: /FREEPOLUS/i })).toBeVisible();
+    // 3. Click Freefallers artist card
+    await page.getByText("Freefallers").first().click();
+    await expect(page).toHaveURL("/artists/freefallers");
+    await expect(page.getByRole("heading", { name: /Freefallers/i })).toBeVisible();
 
     // 4. Click Moonwave EP from Discography
     await page.getByRole("link", { name: /Moonwave EP/i }).first().click();
@@ -267,8 +267,8 @@ test.describe("Responsive — 375px mobile", () => {
   });
 
   test("Artist profile renders on mobile", async ({ page }) => {
-    await page.goto("/artists/freepolus");
-    await expect(page.getByRole("heading", { name: /FREEPOLUS/i })).toBeVisible();
+    await page.goto("/artists/freefallers");
+    await expect(page.getByRole("heading", { name: /Freefallers/i })).toBeVisible();
     await expect(page.getByText("12.4K")).toBeVisible();
   });
 

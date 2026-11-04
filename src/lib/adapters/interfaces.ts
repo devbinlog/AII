@@ -35,7 +35,7 @@ import type {
 // ============================================================
 
 export interface AuthRepository {
-  signIn(email: string, password: string): Promise<{ user: User; session: Session }>;
+  signIn(email: string, password: string): Promise<{ user: User; session: Session; sessionToken: string }>;
   signOut(sessionToken: string): Promise<void>;
   getSession(sessionToken: string): Promise<Session | null>;
   getUser(userId: string): Promise<User | null>;
@@ -110,6 +110,7 @@ export interface ExperienceRepository {
 
 export interface CampaignRepository {
   findById(id: string): Promise<Campaign | null>;
+  findBySlug(slug: string): Promise<Campaign | null>;
   listByArtist(artistId: string, query: PaginationQuery): Promise<{ campaigns: Campaign[]; total: number }>;
   listPublic(query: PaginationQuery & { status?: Campaign["status"] }): Promise<{ campaigns: Campaign[]; total: number }>;
   create(data: CreateCampaignRequest): Promise<Campaign>;
@@ -135,7 +136,8 @@ export interface ArtworkRepository {
     creatorId?: string;
     sessionToken?: string;
   }): Promise<FanArtwork>;
-  update(id: string, data: Partial<Pick<FanArtwork, "title" | "imageUrl" | "permission" | "status">>): Promise<FanArtwork>;
+  update(id: string, data: Partial<Pick<FanArtwork, "title" | "imageUrl" | "permission" | "status" | "customization">>): Promise<FanArtwork>;
+  delete(id: string, requestorId: string): Promise<void>;
   claimAnonymous(sessionToken: string, userId: string): Promise<number>; // Returns claimed count
   flag(id: string, reason: string, reportedBy: string): Promise<void>;
   remove(id: string, removedBy: string): Promise<void>;

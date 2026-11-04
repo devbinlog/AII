@@ -80,7 +80,7 @@ export interface ArtistSocialLinks {
 
 export interface Artist {
   id: ID;
-  slug: string; // URL-safe unique identifier, e.g. "freepolus"
+  slug: string; // URL-safe unique identifier, e.g. "freefallers"
   name: string;
   bio: string;
   genre: string[];
@@ -324,6 +324,21 @@ export interface ExperienceVersion {
   publishedBy: ID;
 }
 
+export type EditableParameterType = "color" | "number" | "text" | "select";
+
+export interface EditableParameter {
+  id: ID;
+  sceneId: ID;
+  objectId: ID;
+  property: string; // e.g. "style.fill", "transform.opacity", "data.content"
+  label: string;
+  type: EditableParameterType;
+  defaultValue: unknown;
+  min?: number;
+  max?: number;
+  options?: string[]; // for type "select"
+}
+
 export interface Experience {
   id: ID;
   artistId: ID;
@@ -332,6 +347,7 @@ export interface Experience {
   description: string;
   coverImageUrl: ImageURL | null;
   scenes: ExperienceScene[];
+  editableParameters: EditableParameter[]; // Fan-editable fields
   status: ExperienceStatus;
   currentVersionId: ID | null;
   totalPlayCount: number;
@@ -374,6 +390,7 @@ export interface CampaignBranding {
 
 export interface Campaign {
   id: ID;
+  slug: string; // URL-safe unique identifier, e.g. "moonwave-fan-artwork"
   artistId: ID;
   experienceId: ID;
   title: string;
@@ -401,12 +418,17 @@ export type ArtworkStatus =
   | "removed";
 
 export interface ArtworkCustomization {
-  // Serialized state of fan's modifications within allowed parameters
-  // Tied to a specific ExperienceVersion — never freeform JS
+  // Serialized state of fan's modifications within allowed parameters.
+  // Tied to a specific ExperienceVersion — never freeform JS.
+  // editableParameters in Experience defines the allowed keys.
   versionId: ID;
-  sceneStates: Record<ID, Record<string, unknown>>; // sceneId → param overrides
+  editableParameters: Record<ID, unknown>; // paramId → value (from Experience.editableParameters)
+  sceneStates: Record<ID, Record<string, unknown>>; // sceneId → derived overrides (computed)
   captureFrameMs: number; // Which frame to export as image
+  deterministicSeed: number; // For reproducible export
 }
+
+export type ModerationStatus = "pending" | "approved" | "flagged" | "removed";
 
 export interface FanArtwork {
   id: ID;
@@ -415,12 +437,14 @@ export interface FanArtwork {
   creatorId: ID | null; // null = anonymous (pending login association)
   sessionToken: string | null; // For anonymous recovery
   title: string;
-  imageUrl: ImageURL | null; // Exported image
+  imageUrl: ImageURL | null; // Exported PNG URL
   customization: ArtworkCustomization;
   permission: ArtworkPermission;
   status: ArtworkStatus;
+  moderationStatus: ModerationStatus;
   likeCount: number;
   shareCount: number;
+  likedBy: ID[]; // user IDs (in-memory only, not persisted in prod)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

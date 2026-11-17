@@ -1,17 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
-import { getSessionTokenFromCookieHeader } from "@/lib/auth/cookie";
+import { getRequestSession } from "@/lib/auth/request-session";
 
 export async function GET(req: NextRequest) {
-  const cookieHeader = req.headers.get("cookie") ?? "";
-  const token = getSessionTokenFromCookieHeader(cookieHeader);
-  if (!token) {
-    return NextResponse.json({ session: null });
+  const session = await getRequestSession(req);
+  if (!session) {
+    return NextResponse.json({ session: null, user: null });
   }
-  const repo = getRepository();
-  const session = await repo.auth.getSession(token);
-  if (!session || new Date(session.expiresAt) < new Date()) {
-    return NextResponse.json({ session: null });
-  }
-  return NextResponse.json({ session });
+  const user = await getRepository().auth.getUser(session.userId);
+  return NextResponse.json({
+    session,
+    user: user ? { displayName: user.displayName, email: user.email } : null,
+  });
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils/cn";
+import { DesktopNavAuth, MobileNavAuth } from "./nav-auth";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -68,19 +69,8 @@ export function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            {/* Desktop actions */}
-            <Link
-              href="/login"
-              className="hidden md:inline-flex text-sm font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/studio"
-              className="hidden md:inline-flex h-8 items-center px-3 text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors"
-            >
-              Studio
-            </Link>
+            {/* Desktop actions — reflect the server-validated session */}
+            <DesktopNavAuth />
 
             {/* Mobile menu toggle */}
             <button
@@ -150,18 +140,7 @@ export function Navbar() {
 
             {/* Divider */}
             <div className="mt-6 pt-6 flex flex-col gap-4">
-              <Link
-                href="/login"
-                className="py-3 text-base font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/studio"
-                className="inline-flex h-12 items-center justify-center px-6 text-base font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors"
-              >
-                Studio
-              </Link>
+              <MobileNavAuth onDone={() => setMobileOpen(false)} />
             </div>
           </nav>
         </div>

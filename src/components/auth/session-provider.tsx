@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ClientSession } from "@/lib/auth/client";
 import { fetchSession, signOut as clientSignOut } from "@/lib/auth/client";
 
@@ -18,35 +19,39 @@ const SessionContext = createContext<SessionContextValue>({
   refresh: async () => {},
 });
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<ClientSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+/**
+ * Holds the session for UI only (navbar, menus). Authorization always happens on
+ * the server. `initialSession` comes from the server-validated cookie, so the
+ * correct state renders on first paint and survives reloads.
+ */
+export function SessionProvider({ children, initialSession }: { children: React.ReactNode; initialSession: ClientSession | null }) {
+  const router = useRouter();
+  const [session, setSession] = useState<ClientSession | null>(initialSession);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const refresh = async () => {
+  // Server re-render (router.refresh after sign-in/out) delivers a new initial session.
+  useEffect(() => {
+    setSession(initialSession);
+  }, [initialSession]);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const s = await fetchSession();
-      setSession(s);
+      setSession(await fetchSession());
     } catch {
       setSession(null);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    void refresh();
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await clientSignOut();
     setSession(null);
-  };
+    router.refresh();
+  }, [router]);
 
-  return (
-    <SessionContext.Provider value={{ session, isLoading, signOut, refresh }}>
-      {children}
-    </SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={{ session, isLoading, signOut, refresh }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): SessionContextValue {

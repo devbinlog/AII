@@ -8,13 +8,17 @@ export interface ClientSession {
   role: string;
   artistId: string | null;
   expiresAt: string;
+  /** Display info for the navbar; not used for authorization. */
+  displayName?: string;
+  email?: string;
 }
 
 export async function fetchSession(): Promise<ClientSession | null> {
   const res = await fetch("/api/auth/session", { credentials: "include" });
   if (!res.ok) return null;
-  const data = await res.json() as { session?: ClientSession };
-  return data.session ?? null;
+  const data = await res.json() as { session?: ClientSession | null; user?: { displayName: string; email: string } | null };
+  if (!data.session) return null;
+  return { ...data.session, ...(data.user ? { displayName: data.user.displayName, email: data.user.email } : {}) };
 }
 
 export async function signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }> {

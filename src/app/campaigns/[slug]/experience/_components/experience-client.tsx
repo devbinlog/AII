@@ -8,6 +8,7 @@ import {
   Component,
 } from "react";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SceneRuntime } from "@/lib/engine/runtime/scene-runtime";
 import { SceneCanvas } from "@/components/engine/scene-canvas";
@@ -168,8 +169,6 @@ export function ExperienceClient({
   experienceTitle,
   experienceVersion,
 }: ExperienceClientProps) {
-  const router = useRouter();
-
   // ── Scenes ──────────────────────────────────────────────
   const sortedScenes = getSortedScenes(experienceVersion);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -340,12 +339,7 @@ export function ExperienceClient({
     );
   }, [sceneIndex, sortedScenes, reducedMotion]);
 
-  const handleCreateArtwork = useCallback(() => {
-    router.push(`/campaigns/${slug}/create`);
-  }, [router, slug]);
-
   // ── Render ───────────────────────────────────────────────
-  const currentSceneEntry = sortedScenes[sceneIndex];
   const hasMultipleScenes = sortedScenes.length > 1;
 
   return (
@@ -529,9 +523,8 @@ export function ExperienceClient({
                   )}
 
                   {/* Create Artwork CTA */}
-                  <button
-                    type="button"
-                    onClick={handleCreateArtwork}
+                  <Link
+                    href={`/campaigns/${slug}/create`}
                     className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded transition-opacity hover:opacity-80"
                     style={{
                       backgroundColor: "var(--color-accent)",
@@ -539,7 +532,7 @@ export function ExperienceClient({
                     }}
                   >
                     Create Artwork
-                  </button>
+                  </Link>
                 </div>
               </div>
             )}

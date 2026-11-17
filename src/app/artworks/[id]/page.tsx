@@ -30,6 +30,7 @@ function ArtworkPlaceholder({ title, color = "#e8192c" }: { title: string; color
     <div
       className="w-full aspect-video relative overflow-hidden flex items-center justify-center"
       style={{ backgroundColor: "#0a0a0a" }}
+      role="img"
       aria-label={`Artwork placeholder for: ${title}`}
     >
       <svg
@@ -71,12 +72,12 @@ function ArtworkPlaceholder({ title, color = "#e8192c" }: { title: string; color
         <p className="caption-label mb-3" style={{ color: `${color}99` }}>
           Fan Artwork
         </p>
-        <h2
+        <p
           className="heading-display text-4xl md:text-6xl"
           style={{ color: "#f5f5f0", lineHeight: 1 }}
         >
           {title}
-        </h2>
+        </p>
       </div>
     </div>
   );

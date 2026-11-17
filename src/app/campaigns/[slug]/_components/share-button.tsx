@@ -35,7 +35,8 @@ export function ShareButton({ campaignSlug }: ShareButtonProps) {
         color: copied ? "#4ade80" : "var(--color-neutral-50)",
         backgroundColor: "transparent",
       }}
-      aria-label="Copy campaign link to clipboard"
+      aria-label={copied ? "Copied! Campaign link copied to clipboard" : "Share — copy campaign link to clipboard"}
+      aria-live="polite"
     >
       {copied ? (
         <>

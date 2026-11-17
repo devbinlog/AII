@@ -35,6 +35,17 @@ interface FanCreatorClientProps {
 
 type ParamValues = Record<string, unknown>;
 
+const HISTORY_LIMIT = 50;
+const HISTORY_COALESCE_MS = 600;
+
+function shallowEqualParams(a: ParamValues, b: ParamValues): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (!Object.is(a[k], b[k])) return false;
+  }
+  return true;
+}
+
 interface SavedArtwork {
   id: string;
 }
@@ -181,6 +192,11 @@ export function FanCreatorClient({
   } | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  // Parameter edit history (undo / redo)
+  const [undoStack, setUndoStack] = useState<ParamValues[]>([]);
+  const [redoStack, setRedoStack] = useState<ParamValues[]>([]);
+  const lastEditRef = useRef<{ key: string; at: number } | null>(null);
+
   // Debounce ref
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -306,20 +322,42 @@ export function FanCreatorClient({
 
   // ── Handlers ─────────────────────────────────────────────────
 
+  // Records the previous values on the undo stack and clears redo.
+  // Consecutive edits of the same parameter (e.g. a slider drag) within
+  // HISTORY_COALESCE_MS collapse into one undo step.
+  const applyParamEdit = useCallback(
+    (next: ParamValues, coalesceKey: string | null) => {
+      if (shallowEqualParams(next, paramValues)) return;
+      const nowMs = Date.now();
+      const last = lastEditRef.current;
+      const coalesce =
+        coalesceKey !== null &&
+        last?.key === coalesceKey &&
+        nowMs - last.at < HISTORY_COALESCE_MS;
+      if (!coalesce) {
+        setUndoStack((s) => [...s, paramValues].slice(-HISTORY_LIMIT));
+      }
+      setRedoStack([]);
+      lastEditRef.current = coalesceKey ? { key: coalesceKey, at: nowMs } : null;
+      setParamValues(next);
+    },
+    [paramValues]
+  );
+
   const handleParamChange = useCallback(
     (paramId: string, value: unknown) => {
-      setParamValues((prev) => ({ ...prev, [paramId]: value }));
+      applyParamEdit({ ...paramValues, [paramId]: value }, paramId);
     },
-    []
+    [applyParamEdit, paramValues]
   );
 
   const handleParamReset = useCallback(
     (paramId: string) => {
       const param = editableParameters.find((p) => p.id === paramId);
       if (!param) return;
-      setParamValues((prev) => ({ ...prev, [paramId]: param.defaultValue }));
+      applyParamEdit({ ...paramValues, [paramId]: param.defaultValue }, null);
     },
-    [editableParameters]
+    [applyParamEdit, editableParameters, paramValues]
   );
 
   const handleResetAll = useCallback(() => {
@@ -327,8 +365,56 @@ export function FanCreatorClient({
     for (const p of editableParameters) {
       defaults[p.id] = p.defaultValue;
     }
-    setParamValues(defaults);
-  }, [editableParameters]);
+    applyParamEdit(defaults, null);
+  }, [applyParamEdit, editableParameters]);
+
+  const handleUndo = useCallback(() => {
+    const prev = undoStack[undoStack.length - 1];
+    if (prev === undefined) return;
+    setUndoStack((s) => s.slice(0, -1));
+    setRedoStack((s) => [paramValues, ...s].slice(0, HISTORY_LIMIT));
+    lastEditRef.current = null;
+    setParamValues(prev);
+  }, [undoStack, paramValues]);
+
+  const handleRedo = useCallback(() => {
+    const next = redoStack[0];
+    if (next === undefined) return;
+    setRedoStack((s) => s.slice(1));
+    setUndoStack((s) => [...s, paramValues].slice(-HISTORY_LIMIT));
+    lastEditRef.current = null;
+    setParamValues(next);
+  }, [redoStack, paramValues]);
+
+  // Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo.
+  // Text fields keep their native undo.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === "TEXTAREA" ||
+          (target.tagName === "INPUT" &&
+            ["text", "search", "url", "email", "number"].includes(
+              (target as HTMLInputElement).type
+            )))
+      ) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const handlePlayPause = useCallback(() => {
     const rt = runtimeRef.current;
@@ -628,16 +714,44 @@ export function FanCreatorClient({
               >
                 Parameters
               </h2>
-              <button
-                onClick={handleResetAll}
-                className="text-xs font-mono px-2 py-0.5 rounded"
-                style={{
-                  color: "var(--color-neutral-400)",
-                  border: "1px solid var(--color-neutral-700)",
-                }}
-              >
-                Reset All
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={undoStack.length === 0}
+                  title="Undo (Ctrl+Z)"
+                  className="text-xs font-mono px-2 py-0.5 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    color: "var(--color-neutral-400)",
+                    border: "1px solid var(--color-neutral-700)",
+                  }}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={redoStack.length === 0}
+                  title="Redo (Ctrl+Shift+Z)"
+                  className="text-xs font-mono px-2 py-0.5 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    color: "var(--color-neutral-400)",
+                    border: "1px solid var(--color-neutral-700)",
+                  }}
+                >
+                  Redo
+                </button>
+                <button
+                  onClick={handleResetAll}
+                  className="text-xs font-mono px-2 py-0.5 rounded"
+                  style={{
+                    color: "var(--color-neutral-400)",
+                    border: "1px solid var(--color-neutral-700)",
+                  }}
+                >
+                  Reset All
+                </button>
+              </div>
             </div>
 
             {editableParameters.length === 0 ? (

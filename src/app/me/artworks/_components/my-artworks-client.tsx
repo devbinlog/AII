@@ -96,14 +96,14 @@ export function MyArtworksClient({ initialArtworks, campaignSlugMap }: MyArtwork
     <div>
       {/* Tab bar */}
       <div
-        className="flex items-center gap-1 mb-8 border-b"
+        className="flex items-center gap-1 mb-8 border-b overflow-x-auto"
         style={{ borderColor: "var(--color-neutral-800)" }}
       >
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className="px-4 py-2.5 text-sm font-medium capitalize transition-colors"
+            className="shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium capitalize transition-colors"
             style={{
               color: activeTab === tab ? "var(--color-neutral-50)" : "var(--color-neutral-500)",
               borderBottom: activeTab === tab ? "2px solid var(--color-accent)" : "2px solid transparent",

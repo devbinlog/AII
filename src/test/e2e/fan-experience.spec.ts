@@ -36,9 +36,9 @@ test.describe("Flow A — Campaign Landing", () => {
   });
 
   test("shows Gallery link", async ({ page }) => {
-    const galleryLink = page.getByRole("link", { name: /Gallery/i }).first();
+    // The landing links to the gallery as "View all artworks" — locate by destination.
+    const galleryLink = page.locator(`a[href="/campaigns/${CAMPAIGN_SLUG}/gallery"]`).first();
     await expect(galleryLink).toBeVisible();
-    await expect(galleryLink).toHaveAttribute("href", new RegExp(`/campaigns/${CAMPAIGN_SLUG}/gallery`));
   });
 
   test("share button is present", async ({ page }) => {
@@ -102,9 +102,11 @@ test.describe("Music Experience", () => {
   });
 
   test("shows link to Fan Creator", async ({ page }) => {
-    await expect(
-      page.getByRole("link", { name: /Create|Creator|Artwork/i }).first()
-    ).toBeVisible();
+    // The Create Artwork CTA lives in the bottom bar, shown once playback starts.
+    await page.getByRole("button", { name: /Start Experience/i }).click();
+    const createLink = page.getByRole("link", { name: /Create Artwork/i });
+    await expect(createLink).toBeVisible();
+    await expect(createLink).toHaveAttribute("href", `/campaigns/${CAMPAIGN_SLUG}/create`);
   });
 
   test("renders canvas element for scene", async ({ page }) => {
@@ -134,7 +136,6 @@ test.describe("Fan Creator", () => {
   test("shows parameter editor controls", async ({ page }) => {
     // Editable parameters should be visible
     // Look for color inputs or labeled sliders
-    const paramPanel = page.locator("[data-testid='param-panel'], .param-panel, form, [role='form']").first();
     // If no testid, just verify export button exists as a proxy for the full creator being loaded
     await expect(page.getByRole("button", { name: /Export PNG/i }).first()).toBeVisible({ timeout: 8000 });
   });
@@ -144,13 +145,37 @@ test.describe("Fan Creator", () => {
     await expect(page.getByRole("button", { name: /Redo/i }).first()).toBeVisible({ timeout: 6000 });
   });
 
+  test("Undo / Redo restore a parameter edit", async ({ page }) => {
+    const undo = page.getByRole("button", { name: /^Undo/i });
+    const redo = page.getByRole("button", { name: /^Redo/i });
+    const slider = page.locator("input[type='range']").first();
+    await expect(slider).toBeVisible({ timeout: 8000 });
+    await expect(undo).toBeDisabled();
+
+    const original = await slider.inputValue();
+    const min = Number((await slider.getAttribute("min")) ?? "0");
+    const max = Number((await slider.getAttribute("max")) ?? "1");
+    const target = String(Number(original) === min ? max : min);
+    await slider.fill(target);
+    await expect(slider).toHaveValue(target);
+    await expect(undo).toBeEnabled();
+
+    await undo.click();
+    await expect(slider).toHaveValue(original);
+    await expect(redo).toBeEnabled();
+
+    await redo.click();
+    await expect(slider).toHaveValue(target);
+  });
+
   test("shows Reset button", async ({ page }) => {
     await expect(page.getByRole("button", { name: /Reset/i }).first()).toBeVisible({ timeout: 6000 });
   });
 
   test("shows login prompt for anonymous users", async ({ page }) => {
     // Anonymous users should see a CTA to sign in for saving
-    await expect(page.getByText(/Sign in/i).first()).toBeVisible({ timeout: 6000 });
+    // Target the creator's own prompt — the navbar "Sign in" link is hidden on mobile.
+    await expect(page.getByText(/Sign in to save your artwork/i)).toBeVisible({ timeout: 6000 });
   });
 
   test("Export PNG button initiates download", async ({ page }) => {

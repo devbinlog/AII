@@ -143,3 +143,22 @@ Requirements mapping:
 - One report immediately sets an artwork to `flagged` (hidden from gallery). Consider a threshold or moderation queue before real users.
 - HUD Play button on the experience page stays in the tab order behind the pre-play overlay.
 - Firefox / WebKit E2E have not run on Windows (Playwright browser download blocked by TLS inspection); run them on macOS or CI.
+
+## 7. Status (2026-11-17)
+
+| Area | State |
+|---|---|
+| Studio foundation (policy, guards, API, frozen versions, public visibility) | Done — branch `feat/ws-05-artist-studio` |
+| Dashboard, Identity, Releases, Media, Scene Editor, Interaction Builder, Experience publish, Campaign Builder, Analytics | Done (MOCK_ONLY) |
+| 3D Stage Configurator (`src/lib/stage`, `src/components/stage`, `/studio/stage`, `/api/studio/stage`) | Done — branch `feat/stage-configurator`; three 0.187, @react-three/fiber 9.8, drei 10.7 |
+
+Stage PoC verified in Edge before the full build: initial camera on stage center, Top/Front/Side/Perspective + reset, orbit/pan/zoom limits, floor-plane drag, locked amps/drums, stage-edge clamping, undo/redo, touch drag on a mobile viewport.
+
+### Not done / follow-ups
+- Timeline keyframes, cue points and real audio sync (see §1a).
+- Scene editor: no direct on-canvas drag of 2D objects (numeric inspector only).
+- Media: no real storage; uploads keep metadata and a ≤512 KB inline image preview in memory.
+- Analytics: synthetic mock data (`participationByDay` is random per request).
+- Stage layout is not yet shown on fan pages; stage props are procedural (no GLB models).
+- Navbar does not reflect the signed-in state (shows "Sign in" while logged in).
+- Mock store changes need a dev-server restart only when the registry shape changes (new stores are now merged on hot reload).

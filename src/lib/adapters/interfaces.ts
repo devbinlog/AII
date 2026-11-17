@@ -1,3 +1,4 @@
+import type { StageLayout } from "@/lib/stage/types";
 /**
  * AII — Repository Interfaces
  * All data access must go through these contracts.
@@ -201,6 +202,16 @@ export interface AuditRepository {
 // Repository Registry
 // ============================================================
 
+// ============================================================
+// Stage Layout Repository (3D Stage Configurator)
+// ============================================================
+
+export interface StageLayoutRepository {
+  /** The artist's saved layout, or null if never saved. */
+  get(artistId: string): Promise<StageLayout | null>;
+  save(layout: StageLayout): Promise<StageLayout>;
+}
+
 export interface RepositoryRegistry {
   auth: AuthRepository;
   artist: ArtistRepository;
@@ -212,4 +223,5 @@ export interface RepositoryRegistry {
   media: MediaRepository;
   analytics: AnalyticsRepository;
   audit: AuditRepository;
+  stage: StageLayoutRepository;
 }

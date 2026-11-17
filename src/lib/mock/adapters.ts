@@ -62,7 +62,9 @@ import type {
   ReleaseRepository,
   RepositoryRegistry,
   SceneRepository,
+  StageLayoutRepository,
 } from "../adapters/interfaces";
+import type { StageLayout } from "@/lib/stage/types";
 import {
   MOCK_ARTISTS,
   MOCK_ARTWORKS,
@@ -132,6 +134,7 @@ function createStore() {
     sessions: new Map<string, Session>(),
     auditLogs: [] as AuditLogEntry[],
     likes: new Set<string>(), // `${userId}:${artworkId}`
+    stageLayouts: new Map<string, StageLayout>(), // artistId → saved 3D stage layout
   };
 }
 
@@ -142,7 +145,8 @@ type MockStore = ReturnType<typeof createStore>;
 // would then give each bundle its own sessions Map, so a session created via
 // /api/auth/signin is not visible to /me/artworks. Keep one store per process.
 const globalForMock = globalThis as typeof globalThis & { __aiiMockStore?: MockStore };
-const store: MockStore = (globalForMock.__aiiMockStore ??= createStore());
+// Keep existing data across hot reloads, but add stores introduced since the process started.
+const store: MockStore = (globalForMock.__aiiMockStore = { ...createStore(), ...globalForMock.__aiiMockStore });
 
 // ============================================================
 // Mock Auth Repository
@@ -867,6 +871,22 @@ const mockAudit: AuditRepository = {
 // Export: Mock Registry
 // ============================================================
 
+// ============================================================
+// Mock Stage Layout Repository
+// ============================================================
+
+const mockStage: StageLayoutRepository = {
+  async get(artistId) {
+    const layout = store.stageLayouts.get(artistId);
+    return layout ? structuredClone(layout) : null;
+  },
+  async save(layout) {
+    const saved = { ...structuredClone(layout), updatedAt: now() };
+    store.stageLayouts.set(layout.artistId, saved);
+    return structuredClone(saved);
+  },
+};
+
 export const mockRegistry: RepositoryRegistry = {
   auth: mockAuth,
   artist: mockArtist,
@@ -878,6 +898,7 @@ export const mockRegistry: RepositoryRegistry = {
   media: mockMedia,
   analytics: mockAnalytics,
   audit: mockAudit,
+  stage: mockStage,
 };
 
 // Re-export interfaces for convenience

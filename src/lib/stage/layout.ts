@@ -1,0 +1,101 @@
+// Pure layout operations: bounds, locks, snapping, movement.
+
+import type { StageBounds, StageItem, StageItemKind, StageLayout, Vec3 } from "./types";
+
+export const STAGE_BOUNDS: StageBounds = { halfWidth: 6, halfDepth: 4 };
+export const GRID_STEP = 0.25;
+
+/** Footprint radius per kind — keeps the whole object on the stage, not just its center. */
+export const FOOTPRINT: Record<StageItemKind, number> = {
+  performer: 0.35,
+  guitar: 0.3,
+  bass: 0.3,
+  keyboard: 0.7,
+  mic: 0.2,
+  amplifier: 0.5,
+  drums: 1.1,
+};
+
+/** Kinds the configurator never lets anyone move (amps and drum kit). */
+export const ALWAYS_LOCKED: ReadonlySet<StageItemKind> = new Set(["amplifier", "drums"]);
+
+export function isMovable(item: StageItem): boolean {
+  return !item.locked && !ALWAYS_LOCKED.has(item.kind);
+}
+
+const round = (n: number) => Math.round(n * 1000) / 1000;
+
+export function snap(value: number, step = GRID_STEP): number {
+  return round(Math.round(value / step) * step);
+}
+
+/** Clamp a floor position so the item's footprint stays inside the stage. */
+export function clampToStage(kind: StageItemKind, position: Vec3, bounds: StageBounds = STAGE_BOUNDS): Vec3 {
+  const r = FOOTPRINT[kind];
+  const maxX = bounds.halfWidth - r;
+  const maxZ = bounds.halfDepth - r;
+  return [round(Math.min(maxX, Math.max(-maxX, position[0]))), 0, round(Math.min(maxZ, Math.max(-maxZ, position[2])))];
+}
+
+export function isInsideStage(item: StageItem, bounds: StageBounds = STAGE_BOUNDS): boolean {
+  const [x, , z] = clampToStage(item.kind, item.position, bounds);
+  return Math.abs(x - item.position[0]) < 1e-6 && Math.abs(z - item.position[2]) < 1e-6 && item.position[1] === 0;
+}
+
+/**
+ * Move an item to a floor position. Locked items are returned unchanged.
+ * The result is clamped to the stage and optionally snapped to the grid.
+ */
+export function moveItem(layout: StageLayout, id: string, target: Vec3, options: { snap?: boolean } = {}): StageLayout {
+  const item = layout.items.find((i) => i.id === id);
+  if (!item || !isMovable(item)) return layout;
+  const raw: Vec3 = options.snap ? [snap(target[0]), 0, snap(target[2])] : target;
+  const position = clampToStage(item.kind, raw);
+  if (position[0] === item.position[0] && position[2] === item.position[2]) return layout;
+  return { ...layout, items: layout.items.map((i) => (i.id === id ? { ...i, position } : i)) };
+}
+
+export function nudgeItem(layout: StageLayout, id: string, dx: number, dz: number): StageLayout {
+  const item = layout.items.find((i) => i.id === id);
+  if (!item) return layout;
+  return moveItem(layout, id, [item.position[0] + dx, 0, item.position[2] + dz]);
+}
+
+export function rotateItem(layout: StageLayout, id: string, deltaRadians: number): StageLayout {
+  const item = layout.items.find((i) => i.id === id);
+  if (!item || !isMovable(item)) return layout;
+  const full = Math.PI * 2;
+  const rotationY = round((((item.rotationY + deltaRadians) % full) + full) % full);
+  return { ...layout, items: layout.items.map((i) => (i.id === id ? { ...i, rotationY } : i)) };
+}
+
+/**
+ * Server-side guard: locked items must stay exactly where the reference layout
+ * has them, every movable item must be inside the stage, and the item set
+ * cannot change. Returns human-readable problems (empty = valid).
+ */
+export function validateAgainstReference(candidate: StageLayout, reference: StageLayout): string[] {
+  const problems: string[] = [];
+  const refById = new Map(reference.items.map((i) => [i.id, i]));
+  const seen = new Set<string>();
+  for (const item of candidate.items) {
+    if (seen.has(item.id)) problems.push(`duplicate item ${item.id}`);
+    seen.add(item.id);
+    const ref = refById.get(item.id);
+    if (!ref) {
+      problems.push(`unknown item ${item.id}`);
+      continue;
+    }
+    if (item.kind !== ref.kind) problems.push(`${item.id}: kind cannot change`);
+    const mustStay = ref.locked || ALWAYS_LOCKED.has(ref.kind);
+    if (mustStay) {
+      if (!item.locked) problems.push(`${item.id}: cannot be unlocked`);
+      if (item.position.some((v, i) => Math.abs(v - ref.position[i]!) > 1e-6) || Math.abs(item.rotationY - ref.rotationY) > 1e-6) {
+        problems.push(`${item.id}: locked item cannot move`);
+      }
+    }
+    if (!isInsideStage(item)) problems.push(`${item.id}: outside the stage`);
+  }
+  for (const id of refById.keys()) if (!seen.has(id)) problems.push(`missing item ${id}`);
+  return problems;
+}

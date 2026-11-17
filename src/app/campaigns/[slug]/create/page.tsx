@@ -40,9 +40,9 @@ export default async function CreatePage({ params }: PageProps) {
         <span
           className="font-mono text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded mb-6"
           style={{
-            backgroundColor: "rgba(232,25,44,0.1)",
+            backgroundColor: "rgba(228,73,66,0.1)",
             color: "var(--color-accent)",
-            border: "1px solid rgba(232,25,44,0.25)",
+            border: "1px solid rgba(228,73,66,0.25)",
           }}
         >
           {campaign.status}

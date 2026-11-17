@@ -98,7 +98,7 @@ export function ScenePreview({ schema, manualAudio }: { schema: SceneSchema; man
         <span className="font-mono text-[var(--color-fg-muted)] tabular-nums" aria-live="off">
           {seconds}s / {total}s
         </span>
-        <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[rgba(232,25,44,0.8)]">
+        <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[rgba(228,73,66,0.8)]">
           {manualAudio ? "Manual audio" : "Simulated audio"}
         </span>
       </div>

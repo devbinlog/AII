@@ -45,7 +45,7 @@ export default async function ExplorePage() {
           </p>
           <div
             className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 border text-xs font-mono"
-            style={{ borderColor: "rgba(232,25,44,0.3)", color: "rgba(232,25,44,0.7)" }}
+            style={{ borderColor: "rgba(228,73,66,0.3)", color: "rgba(228,73,66,0.7)" }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#e8192c] opacity-70" />
             DEMO DATA — All artists, releases, and campaigns are fictional

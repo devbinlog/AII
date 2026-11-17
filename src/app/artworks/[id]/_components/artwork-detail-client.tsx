@@ -150,7 +150,7 @@ export function ArtworkDetailClient({
           disabled={isLiking}
           className={`flex items-center gap-2 px-4 py-2 border text-sm font-medium transition-all ${
             isLiked
-              ? "border-[var(--color-accent)] text-[var(--color-accent)] bg-[rgba(232,25,44,0.08)]"
+              ? "border-[var(--color-accent)] text-[var(--color-accent)] bg-[rgba(228,73,66,0.08)]"
               : "border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-fg)]"
           }`}
           aria-label={isLiked ? "Unlike artwork" : "Like artwork"}
@@ -248,7 +248,7 @@ export function ArtworkDetailClient({
               variant="ghost"
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              className="text-[var(--color-accent)] hover:bg-[rgba(232,25,44,0.08)]"
+              className="text-[var(--color-accent)] hover:bg-[rgba(228,73,66,0.08)]"
             >
               Delete
             </Button>

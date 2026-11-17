@@ -165,7 +165,7 @@ export function ExperienceEditor({
                           setParams((ps) => ps.filter((p) => p.sceneId !== entry.sceneId));
                         }}
                         aria-label={`Remove ${scene?.name ?? "scene"} from sequence`}
-                        className="h-8 px-2 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent)]"
+                        className="h-8 px-2 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent-fg)]"
                       >
                         Remove
                       </button>
@@ -277,7 +277,7 @@ export function ExperienceEditor({
                       )}
                     </div>
                     <div className="flex justify-end">
-                      <button type="button" onClick={() => setParams((ps) => ps.filter((x) => x.id !== p.id))} className="h-9 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent)]">
+                      <button type="button" onClick={() => setParams((ps) => ps.filter((x) => x.id !== p.id))} className="h-9 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent-fg)]">
                         Remove
                       </button>
                     </div>

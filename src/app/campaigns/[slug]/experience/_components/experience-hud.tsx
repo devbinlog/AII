@@ -65,9 +65,9 @@ export function ExperienceHud({
         <span
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-semibold rounded-sm"
           style={{
-            backgroundColor: "rgba(232,25,44,0.15)",
+            backgroundColor: "rgba(228,73,66,0.15)",
             color: "var(--color-accent)",
-            border: "1px solid rgba(232,25,44,0.35)",
+            border: "1px solid rgba(228,73,66,0.35)",
             backdropFilter: "blur(4px)",
           }}
         >

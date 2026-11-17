@@ -134,7 +134,7 @@ export function InteractionBuilder({
               </label>
             </div>
             <div className="flex justify-end">
-              <button type="button" onClick={() => onChange(interactions.filter((x) => x.id !== m.id))} className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent)]">
+              <button type="button" onClick={() => onChange(interactions.filter((x) => x.id !== m.id))} className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-accent-fg)]">
                 Remove mapping
               </button>
             </div>

@@ -76,9 +76,9 @@ export function LoginForm() {
       <div
         className="px-3 py-2 text-xs font-mono border"
         style={{
-          borderColor: "rgba(232,25,44,0.3)",
-          color: "rgba(232,25,44,0.7)",
-          backgroundColor: "rgba(232,25,44,0.04)",
+          borderColor: "rgba(228,73,66,0.3)",
+          color: "rgba(228,73,66,0.7)",
+          backgroundColor: "rgba(228,73,66,0.04)",
         }}
       >
         <p className="mb-1.5">Demo accounts — any password works:</p>

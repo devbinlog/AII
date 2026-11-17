@@ -308,7 +308,7 @@ export function EnginePlaygroundClient() {
                 style={{
                   backgroundColor: validationResult.ok
                     ? "rgba(34,197,94,0.1)"
-                    : "rgba(232,25,44,0.1)",
+                    : "rgba(228,73,66,0.1)",
                   color: validationResult.ok ? "#4ade80" : "var(--color-accent)",
                   border: `1px solid ${validationResult.ok ? "#4ade80" : "var(--color-accent)"}`,
                 }}
@@ -471,7 +471,7 @@ export function EnginePlaygroundClient() {
                           <span
                             className="px-1.5 py-0.5 rounded"
                             style={{
-                              backgroundColor: "rgba(232,25,44,0.15)",
+                              backgroundColor: "rgba(228,73,66,0.15)",
                               color: "var(--color-accent)",
                             }}
                           >

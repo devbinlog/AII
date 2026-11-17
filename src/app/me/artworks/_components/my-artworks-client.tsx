@@ -124,7 +124,7 @@ export function MyArtworksClient({ initialArtworks, campaignSlugMap }: MyArtwork
       {error && (
         <div
           className="mb-6 px-4 py-3 rounded text-sm"
-          style={{ backgroundColor: "rgba(232,25,44,0.1)", border: "1px solid rgba(232,25,44,0.3)", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "rgba(228,73,66,0.1)", border: "1px solid rgba(228,73,66,0.3)", color: "var(--color-accent)" }}
         >
           {error}
         </div>
@@ -310,7 +310,7 @@ function ArtworkCard({ artwork, campaignSlug, onVisibilityChange, onDelete, isPe
                     className="w-full text-left text-xs px-3 py-2 transition-colors"
                     style={{
                       color: artwork.permission === perm ? "var(--color-accent)" : "var(--color-neutral-200)",
-                      backgroundColor: artwork.permission === perm ? "rgba(232,25,44,0.08)" : "transparent",
+                      backgroundColor: artwork.permission === perm ? "rgba(228,73,66,0.08)" : "transparent",
                     }}
                   >
                     {PERMISSION_LABEL[perm]}

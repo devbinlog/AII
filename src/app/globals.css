@@ -7,12 +7,38 @@
 
 @layer base {
   :root {
-    /* --- Color Palette --- */
-    /* Core */
-    --color-black: #0a0a0a;
-    --color-white: #f5f5f0;
-    --color-red: #e8192c;
-    --color-red-dark: #b51020;
+    /* --- AII Core Palette (platform identity) ---
+       Contrast (WCAG 2.x, computed): Ink/Paper 16.4 · Signal Deep on Paper 4.76 ·
+       white on Signal Deep 5.46 · Signal on Ink 4.79 · Stone Deep on Paper 4.77 ·
+       Stone on Ink 7.67. Stone on Paper is 2.14 → borders only, never text. */
+    --aii-ink: #101114;
+    --aii-ink-2: #17181c;          /* raised dark surface */
+    --aii-paper: #f2efe8;
+    --aii-paper-2: #e9e5dc;        /* raised light surface */
+    --aii-signal: #e44942;         /* graphics, large text, text on dark */
+    --aii-signal-deep: #c2352f;    /* fills with white text, accent text on paper */
+    --aii-signal-press: #a82c27;
+    --aii-stone: #a7a5a0;          /* borders; muted text on dark only */
+    --aii-stone-deep: #6b6964;     /* muted text on paper */
+    --aii-iris: #6863de;           /* secondary accent: UI/large only (4.1:1) */
+    --aii-iris-deep: #514cc4;      /* iris as text on paper (5.75:1) */
+
+    /* --- Stage Palette (3D stage surfaces only — never global chrome) --- */
+    --stage-void: #08131f;
+    --stage-void-2: #0d1c2c;
+    --stage-cyan: #38d9f2;
+    --stage-blue: #367cfa;
+    --stage-violet: #a3a0ff;
+    --stage-amber: #f5bc73;
+
+    /* Media black: behind canvases, artwork and video (kept true black) */
+    --color-media-black: #0a0a0a;
+
+    /* --- Legacy core (mapped onto the AII palette) --- */
+    --color-black: var(--aii-ink);
+    --color-white: var(--aii-paper);
+    --color-red: var(--aii-signal-deep);
+    --color-red-dark: var(--aii-signal-press);
     --color-red-muted: #7a0d17;
 
     /* Neutral scale */
@@ -28,16 +54,20 @@
     --color-neutral-100: #e2e2dc;
     --color-neutral-50: #f5f5f0;
 
-    /* Semantic */
-    --color-bg: var(--color-white);
-    --color-bg-secondary: #eeeeea;
-    --color-fg: var(--color-black);
-    --color-fg-muted: var(--color-neutral-500);
-    --color-fg-subtle: var(--color-neutral-300);
-    --color-border: var(--color-neutral-200);
-    --color-border-strong: var(--color-neutral-400);
-    --color-accent: var(--color-red);
-    --color-accent-hover: var(--color-red-dark);
+    /* Semantic (platform UI) */
+    --color-bg: var(--aii-paper);
+    --color-bg-secondary: var(--aii-paper-2);
+    --color-fg: var(--aii-ink);
+    --color-fg-muted: var(--aii-stone-deep);
+    --color-fg-subtle: var(--aii-stone);
+    --color-border: #d9d5cc;
+    --color-border-strong: var(--aii-stone);
+    /* Fill color (buttons, badges) — white text on it passes AA */
+    --color-accent: var(--aii-signal-deep);
+    --color-accent-hover: var(--aii-signal-press);
+    /* Accent used as small text on the current surface */
+    --color-accent-fg: var(--aii-signal-deep);
+    --color-secondary-accent: var(--aii-iris-deep);
 
     /* --- Typography --- */
     --font-sans: var(--font-geist-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -130,21 +160,35 @@
     --color-fg-subtle: var(--color-neutral-600);
     --color-border: var(--color-neutral-800);
     --color-border-strong: var(--color-neutral-600);
+    --color-accent-fg: var(--aii-signal);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
   }
 
-  /* Studio dark mode (always dark) */
+  /* Studio dark mode (always dark) — AII Ink surfaces */
   .studio {
-    --color-bg: #0d0d0d;
-    --color-bg-secondary: #141414;
-    --color-fg: #f0f0ed;
-    --color-fg-muted: #888884;
-    --color-fg-subtle: #444440;
-    --color-border: #222220;
-    --color-border-strong: #333330;
+    --color-bg: var(--aii-ink);
+    --color-bg-secondary: var(--aii-ink-2);
+    --color-fg: var(--aii-paper);
+    --color-fg-muted: var(--aii-stone);
+    --color-fg-subtle: #55534f;
+    --color-border: #24262b;
+    --color-border-strong: #383a40;
+    --color-accent-fg: var(--aii-signal);
+    --color-secondary-accent: var(--aii-iris);
+  }
+
+  /* 3D stage surfaces: Stage palette on Void */
+  .stage-theme {
+    --color-bg: var(--stage-void);
+    --color-bg-secondary: var(--stage-void-2);
+    --color-fg: var(--aii-paper);
+    --color-fg-muted: var(--aii-stone);
+    --color-border: #1b2c3e;
+    --color-border-strong: #2b4058;
+    --color-accent-fg: var(--stage-cyan);
   }
 
   * {

@@ -802,7 +802,7 @@ export function FanCreatorClient({
                 style={{
                   backgroundColor: saveResult.ok
                     ? "rgba(74,222,128,0.08)"
-                    : "rgba(232,25,44,0.08)",
+                    : "rgba(228,73,66,0.08)",
                   color: saveResult.ok ? "#4ade80" : "var(--color-accent)",
                   border: `1px solid ${saveResult.ok ? "#4ade8040" : "var(--color-accent)40"}`,
                 }}
@@ -973,9 +973,9 @@ export function FanCreatorClient({
             <div
               className="mx-6 mb-4 px-3 py-2 rounded text-xs font-mono"
               style={{
-                backgroundColor: "rgba(232,25,44,0.08)",
+                backgroundColor: "rgba(228,73,66,0.08)",
                 color: "var(--color-accent)",
-                border: "1px solid rgba(232,25,44,0.25)",
+                border: "1px solid rgba(228,73,66,0.25)",
               }}
             >
               {exportError}

@@ -89,7 +89,7 @@ function ExperienceErrorUI({ message, slug }: { message: string; slug: string })
       <div className="text-center max-w-md px-6">
         <div
           className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{ backgroundColor: "rgba(232,25,44,0.15)", border: "1px solid rgba(232,25,44,0.4)" }}
+          style={{ backgroundColor: "rgba(228,73,66,0.15)", border: "1px solid rgba(228,73,66,0.4)" }}
         >
           <svg
             viewBox="0 0 20 20"
@@ -445,10 +445,11 @@ export function ExperienceClient({
               </div>
             )}
 
-            {/* ── Scene nav & Create Artwork (bottom bar) ─── */}
+            {/* ── Scene nav & Create Artwork (bottom bar) ───
+                 pr-36 keeps the CTA clear of the HUD play/fullscreen controls (bottom-right). */}
             {hasStarted && (
               <div
-                className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3"
+                className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between gap-3 pl-4 pr-36 py-3"
                 style={{
                   background:
                     "linear-gradient(to top, rgba(10,10,10,0.85) 0%, transparent 100%)",

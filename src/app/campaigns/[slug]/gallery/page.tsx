@@ -61,8 +61,8 @@ export default async function CampaignGalleryPage({ params, searchParams }: Page
       <div
         className="border-b"
         style={{
-          borderColor: "rgba(232,25,44,0.2)",
-          backgroundColor: "rgba(232,25,44,0.05)",
+          borderColor: "rgba(228,73,66,0.2)",
+          backgroundColor: "rgba(228,73,66,0.05)",
         }}
       >
         <div className="max-w-[var(--container-2xl)] mx-auto px-6 py-2 flex items-center gap-2">
@@ -72,7 +72,7 @@ export default async function CampaignGalleryPage({ params, searchParams }: Page
           />
           <p
             className="text-xs font-mono"
-            style={{ color: "rgba(232,25,44,0.7)" }}
+            style={{ color: "rgba(228,73,66,0.7)" }}
           >
             DEMO DATA — All artworks are fictional
           </p>

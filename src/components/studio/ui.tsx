@@ -17,7 +17,7 @@ export function StudioPageHeader({
   return (
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
       <div className="min-w-0">
-        {eyebrow && <p className="caption-label mb-2 text-[var(--color-accent)]">{eyebrow}</p>}
+        {eyebrow && <p className="caption-label mb-2 text-[var(--color-accent-fg)]">{eyebrow}</p>}
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-[var(--color-fg)] break-words">{title}</h1>
         {description && <p className="mt-2 text-sm text-[var(--color-fg-muted)] max-w-2xl">{description}</p>}
       </div>
@@ -138,7 +138,7 @@ export function FormMessage({ result }: { result: { ok: boolean; message: string
       role={result.ok ? "status" : "alert"}
       className={cn(
         "px-3 py-2 text-sm border",
-        result.ok ? "border-emerald-500/40 text-emerald-400" : "border-[var(--color-accent)] text-[var(--color-accent)]"
+        result.ok ? "border-emerald-500/40 text-emerald-400" : "border-[var(--color-accent)] text-[var(--color-accent-fg)]"
       )}
     >
       {result.message}
@@ -155,7 +155,7 @@ export function FormMessage({ result }: { result: { ok: boolean; message: string
 
 export function DemoNotice({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-3 py-2 text-xs font-mono border border-[rgba(232,25,44,0.3)] text-[rgba(232,25,44,0.8)] bg-[rgba(232,25,44,0.04)]">
+    <p className="px-3 py-2 text-xs font-mono border border-[rgba(228,73,66,0.3)] text-[var(--color-accent-fg)] bg-[rgba(228,73,66,0.04)]">
       {children}
     </p>
   );

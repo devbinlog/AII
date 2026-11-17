@@ -19,7 +19,7 @@ export default async function StudioLayout({ children }: { children: React.React
       {showShell ? (
         <div className="max-w-[1440px] mx-auto px-4 md:px-6 py-6 md:py-8 flex flex-col md:flex-row gap-6 md:gap-8">
           <aside className="md:w-48 shrink-0">
-            <Link href="/studio" className="hidden md:block mb-4 text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-accent)]">
+            <Link href="/studio" className="hidden md:block mb-4 text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-accent-fg)]">
               Artist Studio
             </Link>
             <StudioNav />

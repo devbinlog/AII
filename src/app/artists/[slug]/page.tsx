@@ -163,10 +163,12 @@ export default async function ArtistProfilePage({ params }: PageProps) {
   const artist = await repo.artist.findBySlug(slug);
   if (!artist) notFound();
 
-  const [releaseResult, campaignResult, experienceResult] = await Promise.all([
+  const [releaseResult, campaignResult, experienceResult, publishedStage] = await Promise.all([
     repo.release.listByArtist(artist.id, { page: 1, pageSize: 20 }),
     repo.campaign.listByArtist(artist.id, { page: 1, pageSize: 10 }),
     repo.experience.listByArtist(artist.id, { page: 1, pageSize: 10 }),
+    // Only a published version counts; drafts are never surfaced here.
+    repo.stage.getPublished(artist.id),
   ]);
 
   const releases = releaseResult.releases.filter(isPublicRelease);
@@ -296,6 +298,35 @@ export default async function ArtistProfilePage({ params }: PageProps) {
           </div>
         </div>
       </section>
+
+      {/* Live Stage — shown only when a stage version is published */}
+      {publishedStage && (
+        <section className="border-b border-[var(--color-border)] bg-[#0a0a0a] text-[#f5f5f0]" aria-labelledby="live-stage-title">
+          <div className="max-w-[var(--container-2xl)] mx-auto px-6 py-12 md:py-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            <div className="md:col-span-3">
+              <p className="caption-label" style={{ color: "#2f8fff" }}>Live Stage</p>
+            </div>
+            <div className="md:col-span-6">
+              <h2 id="live-stage-title" className="heading-editorial text-3xl">Step onto the live stage</h2>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: "rgba(245,245,240,0.6)" }}>
+                Explore the band&apos;s 3D stage layout — {publishedStage.items.filter((i) => i.kind === "performer").length} hologram members and their gear. Orbit, zoom, and tap anyone to see where they play.
+              </p>
+            </div>
+            <div className="md:col-span-3 md:text-right">
+              <Link
+                href={`/artists/${artist.slug}/stage`}
+                className="inline-flex h-11 items-center gap-2 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                style={{ backgroundColor: "#2f8fff" }}
+              >
+                Enter the 3D stage
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                  <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Brand Identity */}
       <section className="border-b border-[var(--color-border)]">

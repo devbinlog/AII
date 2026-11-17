@@ -39,6 +39,8 @@ async function topView(page: Page) {
 
 /** World (x, z) → page pixel for the top view (fov 45°, camera height 16, +Z down the screen). */
 async function topViewMapper(page: Page) {
+  // Touch/mouse input outside the visible viewport is not delivered.
+  await page.getByTestId("stage-viewport").scrollIntoViewIfNeeded();
   const box = (await page.getByTestId("stage-viewport").locator("canvas").boundingBox())!;
   const visH = 2 * 16 * Math.tan((22.5 * Math.PI) / 180);
   const aspect = box.width / box.height;
@@ -90,6 +92,8 @@ test.describe("3D Stage Configurator", () => {
 
   test("drag moves a member, drums stay locked, items stay on stage, undo/redo", async ({ page }) => {
     await openStage(page);
+    // Other tests save drafts; start from the default arrangement (unsaved, local only).
+    await page.getByRole("button", { name: "Default layout" }).click();
     await topView(page);
     const at = await topViewMapper(page);
 
@@ -115,6 +119,7 @@ test.describe("3D Stage Configurator", () => {
 
   test("keyboard and list controls move the selected item", async ({ page }) => {
     await openStage(page);
+    await page.getByRole("button", { name: "Default layout" }).click();
     await page.getByRole("button", { name: /^Keyboard/ }).click();
     const start = await pos(page, "keyboard");
     await page.getByRole("button", { name: "Move downstage" }).click();
@@ -150,6 +155,8 @@ test.describe("3D Stage Configurator — touch", () => {
 
   test("one-finger drag moves a member on a touch device", async ({ page }) => {
     await openStage(page);
+    // Other tests save drafts; start from the default arrangement (unsaved, local only).
+    await page.getByRole("button", { name: "Default layout" }).click();
     await topView(page);
     const at = await topViewMapper(page);
     const from = at(0, 1.75);

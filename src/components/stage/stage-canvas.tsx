@@ -13,7 +13,6 @@ import {
   isMovable,
   type CameraView,
   type StageItem,
-  type StageLayout,
   type Vec3,
 } from "@/lib/stage";
 import { HOLOGRAM_BLUE, StageProp } from "./stage-objects";
@@ -26,19 +25,29 @@ interface ControlsLike {
   removeEventListener: (type: "change", fn: () => void) => void;
 }
 
-export interface StageCanvasProps {
-  layout: StageLayout;
+interface StageCanvasCommon {
+  /** Items to render (a draft layout in the editor, a published snapshot in the viewer). */
+  items: StageItem[];
   selectedId: string | null;
   /** Bumping `nonce` re-applies the view even if it did not change (Reset camera). */
   view: { name: CameraView; nonce: number };
   reducedMotion: boolean;
   onSelect: (id: string | null) => void;
+  onCameraChange?: (camera: { position: Vec3; target: Vec3 }) => void;
+}
+
+interface EditHandlers {
   /** Live drag update (no history step). */
   onDrag: (id: string, position: Vec3) => void;
   onDragStart: (id: string) => void;
   onDragEnd: (id: string) => void;
-  onCameraChange?: (camera: { position: Vec3; target: Vec3 }) => void;
 }
+
+/**
+ * "edit": object dragging (Studio editor). "view": camera controls + selection only
+ * (public viewer) — no drag handlers are attached at all.
+ */
+export type StageCanvasProps = StageCanvasCommon & ({ mode: "edit" } & EditHandlers | { mode: "view" });
 
 const FLOOR = new Plane(new Vector3(0, 1, 0), 0);
 
@@ -158,7 +167,7 @@ function DraggableItem({
   selected: boolean;
   reducedMotion: boolean;
   seed: number;
-} & Pick<StageCanvasProps, "onSelect" | "onDrag" | "onDragStart" | "onDragEnd">) {
+} & Pick<StageCanvasCommon, "onSelect"> & EditHandlers) {
   const controls = useThree((s) => s.controls) as unknown as ControlsLike | null;
   const gl = useThree((s) => s.gl);
   const drag = useRef<{ offset: Vector3; pointerId: number; moving: boolean } | null>(null);
@@ -229,8 +238,42 @@ function DraggableItem({
   );
 }
 
+/** Read-only item: click/tap selects for the info panel; never moves. */
+function ViewItem({ item, selected, reducedMotion, seed, onSelect }: { item: StageItem; selected: boolean; reducedMotion: boolean; seed: number; onSelect: (id: string) => void }) {
+  const gl = useThree((s) => s.gl);
+  const r = FOOTPRINT[item.kind];
+  return (
+    <group position={item.position} rotation={[0, item.rotationY, 0]}>
+      <StageProp kind={item.kind} reducedMotion={reducedMotion} highlighted={selected} seed={seed} />
+      <mesh
+        position={[0, 0.9, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(item.id);
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          gl.domElement.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          gl.domElement.style.cursor = "";
+        }}
+      >
+        <cylinderGeometry args={[Math.max(r, 0.35), Math.max(r, 0.35), 1.9, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {selected && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+          <ringGeometry args={[r + 0.08, r + 0.14, 48]} />
+          <meshBasicMaterial color="#f5f5f0" />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 export function StageCanvas(props: StageCanvasProps) {
-  const { layout, selectedId, view, reducedMotion, onSelect, onCameraChange } = props;
+  const { items, selectedId, view, reducedMotion, onSelect, onCameraChange } = props;
   const initial = CAMERA_VIEWS[view.name];
   return (
     <Canvas
@@ -246,19 +289,23 @@ export function StageCanvas(props: StageCanvasProps) {
       <directionalLight position={[5, 10, 6]} intensity={1.1} />
       <spotLight position={[0, 9, 6]} angle={0.6} penumbra={0.6} intensity={18} color={HOLOGRAM_BLUE} />
       <StagePlatform />
-      {layout.items.map((item, i) => (
-        <DraggableItem
-          key={item.id}
-          item={item}
-          selected={item.id === selectedId}
-          reducedMotion={reducedMotion}
-          seed={i * 1.37}
-          onSelect={props.onSelect}
-          onDrag={props.onDrag}
-          onDragStart={props.onDragStart}
-          onDragEnd={props.onDragEnd}
-        />
-      ))}
+      {items.map((item, i) =>
+        props.mode === "edit" ? (
+          <DraggableItem
+            key={item.id}
+            item={item}
+            selected={item.id === selectedId}
+            reducedMotion={reducedMotion}
+            seed={i * 1.37}
+            onSelect={onSelect}
+            onDrag={props.onDrag}
+            onDragStart={props.onDragStart}
+            onDragEnd={props.onDragEnd}
+          />
+        ) : (
+          <ViewItem key={item.id} item={item} selected={item.id === selectedId} reducedMotion={reducedMotion} seed={i * 1.37} onSelect={onSelect} />
+        )
+      )}
       <OrbitControls
         makeDefault
         target={initial.target}

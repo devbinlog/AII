@@ -6,12 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth/client";
 
+const DEMO_ACCOUNTS = [
+  { email: "studio@freefallers.com", role: "Artist Studio (admin)" },
+  { email: "editor@freefallers.com", role: "Artist Studio (editor)" },
+  { email: "fan1@example.com", role: "Fan" },
+];
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/me/artworks";
+  // Only same-site paths: "/x" but not "//host" or "/\host" (open-redirect guard).
+  const requested = searchParams.get("redirect");
+  const redirectTo = requested && /^\/(?![/\\])/.test(requested) ? requested : "/me/artworks";
+  const forStudio = redirectTo.startsWith("/studio");
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(forStudio ? "studio@freefallers.com" : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -72,7 +81,24 @@ export function LoginForm() {
           backgroundColor: "rgba(232,25,44,0.04)",
         }}
       >
-        Demo — use <strong>fan1@example.com</strong> with any password
+        <p className="mb-1.5">Demo accounts — any password works:</p>
+        <ul className="flex flex-col gap-1">
+          {DEMO_ACCOUNTS.map((a) => (
+            <li key={a.email}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail(a.email);
+                  if (!password) setPassword("demo");
+                }}
+                className="underline underline-offset-2 hover:opacity-80"
+              >
+                <strong>{a.email}</strong>
+              </button>{" "}
+              — {a.role}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <Button

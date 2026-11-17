@@ -301,10 +301,10 @@ export default async function ArtistProfilePage({ params }: PageProps) {
 
       {/* Live Stage — shown only when a stage version is published */}
       {publishedStage && (
-        <section className="border-b border-[var(--color-border)] bg-[#0a0a0a] text-[#f5f5f0]" aria-labelledby="live-stage-title">
+        <section className="border-b border-[var(--color-border)] text-[var(--aii-paper)]" style={{ backgroundColor: "var(--stage-void)" }} aria-labelledby="live-stage-title">
           <div className="max-w-[var(--container-2xl)] mx-auto px-6 py-12 md:py-16 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
             <div className="md:col-span-3">
-              <p className="caption-label" style={{ color: "#2f8fff" }}>Live Stage</p>
+              <p className="caption-label" style={{ color: "var(--stage-cyan)" }}>Live Stage</p>
             </div>
             <div className="md:col-span-6">
               <h2 id="live-stage-title" className="heading-editorial text-3xl">Step onto the live stage</h2>
@@ -315,8 +315,8 @@ export default async function ArtistProfilePage({ params }: PageProps) {
             <div className="md:col-span-3 md:text-right">
               <Link
                 href={`/artists/${artist.slug}/stage`}
-                className="inline-flex h-11 items-center gap-2 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: "#2f8fff" }}
+                className="inline-flex h-11 items-center gap-2 px-5 text-sm font-semibold transition-opacity hover:opacity-85"
+                style={{ backgroundColor: "var(--stage-cyan)", color: "var(--stage-void)" }}
               >
                 Enter the 3D stage
                 <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">

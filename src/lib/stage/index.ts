@@ -17,3 +17,4 @@ export * from "./camera";
 export * from "./history";
 export * from "./presets";
 export * from "./serialize";
+export * from "./characters";

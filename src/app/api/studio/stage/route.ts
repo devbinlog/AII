@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, readJson, requireStudio } from "@/lib/studio/api";
-import { defaultStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
+import { defaultStageLayout, normalizeStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
 
 /** The artist's saved stage layout, or the default band layout if none is saved. */
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     ok: true,
-    layout: saved ?? defaultStageLayout(ctx.artistId),
+    layout: saved ? normalizeStageLayout(saved, defaultStageLayout(ctx.artistId)) : defaultStageLayout(ctx.artistId),
     saved: saved !== null,
     publication,
     versions: versions.map((v) => ({ id: v.id, version: v.version, publishedAt: v.publishedAt })),
@@ -37,9 +37,11 @@ export async function PUT(req: NextRequest) {
   const parsed = parseStageLayout(body);
   if (!parsed.ok) return apiError("INVALID_INPUT", 400, parsed.error);
 
-  const problems = validateAgainstReference(parsed.layout, defaultStageLayout(ctx.artistId));
+  const reference = defaultStageLayout(ctx.artistId);
+  const candidate = normalizeStageLayout(parsed.layout, reference);
+  const problems = validateAgainstReference(candidate, reference);
   if (problems.length > 0) return apiError("INVALID_LAYOUT", 422, problems[0], problems);
 
-  const layout = await getRepository().stage.save(parsed.layout);
+  const layout = await getRepository().stage.save(candidate);
   return NextResponse.json({ ok: true, layout });
 }

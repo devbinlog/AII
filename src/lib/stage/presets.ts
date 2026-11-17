@@ -18,6 +18,7 @@ export function defaultStageLayout(artistId: string, now = new Date().toISOStrin
       { id: "member-guitar", kind: "performer", label: "Guitar", position: [-2.5, 0, 0.5], rotationY: 0.3, locked: false },
       { id: "member-bass", kind: "performer", label: "Bass", position: [2.5, 0, 0.5], rotationY: -0.3, locked: false },
       { id: "member-drums", kind: "performer", label: "Drums", position: [0, 0, -1.25], rotationY: 0, locked: false },
+      { id: "member-keys", kind: "performer", label: "Keys", position: [-4.5, 0, -1.6], rotationY: 0.4, locked: false },
       // Movable instruments
       { id: "mic-vocal", kind: "mic", label: "Vocal mic", position: [0, 0, 2.5], rotationY: 0, locked: false },
       { id: "guitar", kind: "guitar", label: "Guitar", position: [-2.5, 0, 1], rotationY: 0.3, locked: false },

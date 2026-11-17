@@ -70,6 +70,17 @@ export function rotateItem(layout: StageLayout, id: string, deltaRadians: number
 }
 
 /**
+ * Additive migration: items added to the default layout after a draft was saved
+ * (e.g. the Keys member) are inserted at their default positions. Existing items,
+ * coordinates and locks are untouched; published versions are never migrated.
+ */
+export function normalizeStageLayout(layout: StageLayout, reference: StageLayout): StageLayout {
+  const have = new Set(layout.items.map((i) => i.id));
+  const missing = reference.items.filter((i) => !have.has(i.id));
+  return missing.length === 0 ? layout : { ...layout, items: [...layout.items, ...structuredClone(missing)] };
+}
+
+/**
  * Server-side guard: locked items must stay exactly where the reference layout
  * has them, every movable item must be inside the stage, and the item set
  * cannot change. Returns human-readable problems (empty = valid).

@@ -148,6 +148,48 @@ test.describe("3D Stage Configurator", () => {
   });
 });
 
+test.describe("3D Stage Configurator — layout & motion", () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop layout");
+  });
+
+  test("three-column editor: objects left, inspector right; focus mode hides panels; Esc exits", async ({ page }) => {
+    await openStage(page);
+    const objects = page.getByRole("complementary", { name: "Stage objects" });
+    const inspector = page.getByRole("complementary", { name: "Inspector" });
+    const viewport = page.getByTestId("stage-viewport");
+    const [o, v, i] = await Promise.all([objects.boundingBox(), viewport.boundingBox(), inspector.boundingBox()]);
+    expect(o!.x).toBeLessThan(v!.x);
+    expect(i!.x).toBeGreaterThan(v!.x);
+    await expect(objects.getByRole("button", { name: /^Keys\s*performer$/i })).toBeVisible();
+
+    await page.getByRole("button", { name: "Focus" }).click();
+    await expect(objects).toHaveCount(0);
+    await expect(inspector).toHaveCount(0);
+    expect((await viewport.boundingBox())!.width).toBeGreaterThan(v!.width);
+    await page.keyboard.press("Escape");
+    await expect(objects).toBeVisible();
+  });
+
+  test("labels toggle and locked state in the inspector", async ({ page }) => {
+    await openStage(page);
+    const labels = page.getByRole("button", { name: "Labels" });
+    await expect(labels).toHaveAttribute("aria-pressed", "true");
+    await labels.click();
+    await expect(labels).toHaveAttribute("aria-pressed", "false");
+    await page.getByRole("complementary", { name: "Stage objects" }).getByRole("button", { name: /^Drum kit/ }).click();
+    await expect(page.getByRole("complementary", { name: "Inspector" }).getByText(/Locked in place/)).toBeVisible();
+  });
+
+  test("reduced motion: camera presets jump instantly", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openStage(page);
+    await page.getByRole("button", { name: "Side", exact: true }).click();
+    await page.waitForTimeout(250);
+    expect((await readState(page)).camera!.position).toEqual([14, 2.2, 0]);
+  });
+});
+
 test.describe("3D Stage Configurator — touch", () => {
   test.beforeEach(({}, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "touch-only");

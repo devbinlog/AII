@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
 import { Plane, Vector3 } from "three";
@@ -11,11 +11,13 @@ import {
   STAGE_BOUNDS,
   clampTarget,
   isMovable,
+  performerRole,
+  ROLE_STYLES,
   type CameraView,
   type StageItem,
   type Vec3,
 } from "@/lib/stage";
-import { HOLOGRAM_BLUE, StageProp } from "./stage-objects";
+import { STAGE_LIGHT_BLUE, StageProp } from "./stage-objects";
 
 interface ControlsLike {
   target: Vector3;
@@ -34,6 +36,8 @@ interface StageCanvasCommon {
   reducedMotion: boolean;
   onSelect: (id: string | null) => void;
   onCameraChange?: (camera: { position: Vec3; target: Vec3 }) => void;
+  /** Floating name tags over members (and the selected item). */
+  showLabels?: boolean;
 }
 
 interface EditHandlers {
@@ -117,17 +121,17 @@ function StagePlatform() {
     <group>
       <mesh position={[0, -0.25, 0]} receiveShadow>
         <boxGeometry args={[w + 0.4, 0.5, d + 0.4]} />
-        <meshStandardMaterial color="#141414" roughness={0.9} />
+        <meshStandardMaterial color="#0d1c2c" roughness={0.9} />
       </mesh>
       <Grid
         position={[0, 0.002, 0]}
         args={[w, d]}
         cellSize={0.25}
         cellThickness={0.5}
-        cellColor="#2a2a2a"
+        cellColor="#173049"
         sectionSize={1}
         sectionThickness={1}
-        sectionColor="#3d3d3d"
+        sectionColor="#26496c"
         fadeDistance={60}
       />
       {/* Stage edge: the movement boundary */}
@@ -141,16 +145,71 @@ function StagePlatform() {
       ).map(([x, z, sw, sd], i) => (
         <mesh key={i} position={[x, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[sw, sd]} />
-          <meshBasicMaterial color="#e8192c" transparent opacity={0.7} />
+          <meshBasicMaterial color="#e44942" transparent opacity={0.75} />
         </mesh>
       ))}
       {/* Audience marker (downstage) */}
       <mesh position={[0, 0.006, STAGE_BOUNDS.halfDepth + 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[w * 0.6, 0.06]} />
-        <meshBasicMaterial color="#5c5c5c" />
+        <meshBasicMaterial color="#2b4058" />
+      </mesh>
+      {/* Center axis marker: X (stage width) in Stone, Z (toward audience) in Cyan */}
+      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[1.2, 0.02]} />
+        <meshBasicMaterial color="#a7a5a0" transparent opacity={0.8} />
+      </mesh>
+      <mesh position={[0, 0.008, 0.3]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.02, 0.6]} />
+        <meshBasicMaterial color="#38d9f2" transparent opacity={0.9} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.009, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.07, 0.09, 24]} />
+        <meshBasicMaterial color="#f2efe8" transparent opacity={0.8} />
       </mesh>
     </group>
   );
+}
+
+/** Dashed Signal-red ring marking items that can never move (amps, drums). */
+function LockedMarker({ radius }: { radius: number }) {
+  return (
+    <group position={[0, 0.014, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {Array.from({ length: 12 }).map((_, i) => (
+        <mesh key={i}>
+          <ringGeometry args={[radius + 0.04, radius + 0.08, 6, 1, (i * Math.PI) / 6, Math.PI / 12]} />
+          <meshBasicMaterial color="#e44942" transparent opacity={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+type LabelRefs = MutableRefObject<Map<string, HTMLSpanElement>>;
+
+/**
+ * Projects label anchors to screen space every frame and positions DOM tags in an
+ * overlay outside the canvas. Avoids per-label React roots (drei Html) entirely.
+ */
+function LabelProjector({ items, labelRefs }: { items: StageItem[]; labelRefs: LabelRefs }) {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const v = useMemo(() => new Vector3(), []);
+  useFrame(() => {
+    for (const item of items) {
+      const el = labelRefs.current.get(item.id);
+      if (!el) continue;
+      v.set(item.position[0], item.kind === "performer" ? 2.15 : 1.4, item.position[2]).project(camera);
+      const visible = v.z < 1 && Math.abs(v.x) <= 1.1 && Math.abs(v.y) <= 1.1;
+      el.style.visibility = visible ? "visible" : "hidden";
+      el.style.transform = `translate(-50%, -50%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
+    }
+  });
+  return null;
+}
+
+function labelColor(item: StageItem): string {
+  const role = performerRole(item);
+  return role ? ROLE_STYLES[role].color : isMovable(item) ? "#a7a5a0" : "#e44942";
 }
 
 function DraggableItem({
@@ -208,7 +267,7 @@ function DraggableItem({
   const r = FOOTPRINT[item.kind];
   return (
     <group position={item.position} rotation={[0, item.rotationY, 0]}>
-      <StageProp kind={item.kind} reducedMotion={reducedMotion} highlighted={selected} seed={seed} />
+      <StageProp item={item} reducedMotion={reducedMotion} highlighted={selected} seed={seed} />
       {/* Generous invisible hit target (bigger than the mark) */}
       <mesh
         position={[0, 0.9, 0]}
@@ -228,10 +287,11 @@ function DraggableItem({
         <cylinderGeometry args={[Math.max(r, 0.35), Math.max(r, 0.35), 1.9, 16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {selected && (
+      {!movable && <LockedMarker radius={r} />}
+      {selected && item.kind !== "performer" && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-          <ringGeometry args={[r + 0.08, r + 0.14, 48]} />
-          <meshBasicMaterial color={movable ? "#f5f5f0" : "#e8192c"} />
+          <ringGeometry args={[r + 0.1, r + 0.15, 48]} />
+          <meshBasicMaterial color="#f2efe8" />
         </mesh>
       )}
     </group>
@@ -244,7 +304,7 @@ function ViewItem({ item, selected, reducedMotion, seed, onSelect }: { item: Sta
   const r = FOOTPRINT[item.kind];
   return (
     <group position={item.position} rotation={[0, item.rotationY, 0]}>
-      <StageProp kind={item.kind} reducedMotion={reducedMotion} highlighted={selected} seed={seed} />
+      <StageProp item={item} reducedMotion={reducedMotion} highlighted={selected} seed={seed} />
       <mesh
         position={[0, 0.9, 0]}
         onClick={(e) => {
@@ -262,10 +322,10 @@ function ViewItem({ item, selected, reducedMotion, seed, onSelect }: { item: Sta
         <cylinderGeometry args={[Math.max(r, 0.35), Math.max(r, 0.35), 1.9, 16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {selected && (
+      {selected && item.kind !== "performer" && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-          <ringGeometry args={[r + 0.08, r + 0.14, 48]} />
-          <meshBasicMaterial color="#f5f5f0" />
+          <ringGeometry args={[r + 0.1, r + 0.15, 48]} />
+          <meshBasicMaterial color="#f2efe8" />
         </mesh>
       )}
     </group>
@@ -273,9 +333,12 @@ function ViewItem({ item, selected, reducedMotion, seed, onSelect }: { item: Sta
 }
 
 export function StageCanvas(props: StageCanvasProps) {
-  const { items, selectedId, view, reducedMotion, onSelect, onCameraChange } = props;
+  const { items, selectedId, view, reducedMotion, onSelect, onCameraChange, showLabels = false } = props;
   const initial = CAMERA_VIEWS[view.name];
+  const labelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const labelled = items.filter((i) => i.id === selectedId || (showLabels && i.kind === "performer"));
   return (
+    <div className="absolute inset-0">
     <Canvas
       camera={{ position: initial.position, fov: 45, near: 0.1, far: 200 }}
       dpr={[1, 2]}
@@ -283,11 +346,11 @@ export function StageCanvas(props: StageCanvasProps) {
       style={{ touchAction: "none" }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
     >
-      <color attach="background" args={["#0a0a0a"]} />
-      <fog attach="fog" args={["#0a0a0a", 25, 60]} />
+      <color attach="background" args={["#08131f"]} />
+      <fog attach="fog" args={["#08131f", 25, 60]} />
       <ambientLight intensity={0.35} />
       <directionalLight position={[5, 10, 6]} intensity={1.1} />
-      <spotLight position={[0, 9, 6]} angle={0.6} penumbra={0.6} intensity={18} color={HOLOGRAM_BLUE} />
+      <spotLight position={[0, 9, 6]} angle={0.6} penumbra={0.6} intensity={18} color={STAGE_LIGHT_BLUE} />
       <StagePlatform />
       {items.map((item, i) =>
         props.mode === "edit" ? (
@@ -318,6 +381,24 @@ export function StageCanvas(props: StageCanvasProps) {
         screenSpacePanning={false}
       />
       <CameraRig view={view} reducedMotion={reducedMotion} {...(onCameraChange ? { onCameraChange } : {})} />
+      <LabelProjector items={labelled} labelRefs={labelRefs} />
     </Canvas>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {labelled.map((item) => (
+        <span
+          key={item.id}
+          ref={(el) => {
+            if (el) labelRefs.current.set(item.id, el);
+            else labelRefs.current.delete(item.id);
+          }}
+          className="absolute left-0 top-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#f2efe8]"
+          style={{ background: "rgba(8,19,31,0.78)", border: `1px solid ${labelColor(item)}`, visibility: "hidden" }}
+        >
+          {item.label}
+          {!isMovable(item) ? " · locked" : ""}
+        </span>
+      ))}
+    </div>
+    </div>
   );
 }

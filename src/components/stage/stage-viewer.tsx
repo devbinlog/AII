@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Component, useEffect, useState, type ReactNode } from "react";
-import type { CameraView, StageItem, StageItemKind, Vec3 } from "@/lib/stage";
+import { ROLE_STYLES, performerRole, type CameraView, type StageItem, type StageItemKind, type Vec3 } from "@/lib/stage";
 
 // Same renderer as the Studio editor, mounted in read-only "view" mode.
 const StageCanvas = dynamic(() => import("./stage-canvas").then((m) => m.StageCanvas), {
@@ -57,6 +57,7 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
   const [camera, setCamera] = useState<{ position: Vec3; target: Vec3 } | null>(null);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
 
   useEffect(() => {
     setWebgl(webglAvailable());
@@ -70,7 +71,12 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
   const selected = items.find((i) => i.id === selectedId) ?? null;
   const members = items.filter((i) => i.kind === "performer");
   const gear = items.filter((i) => i.kind !== "performer");
-  const btn = "h-10 min-w-10 px-3 text-sm border border-[var(--color-border-strong)] hover:border-[var(--color-fg)]";
+  const btn = "h-9 min-w-9 shrink-0 px-3 text-sm border border-[var(--color-border-strong)] hover:border-[var(--color-fg)]";
+  const dot = (item: StageItem) => {
+    const r = performerRole(item);
+    return r ? ROLE_STYLES[r].color : item.kind === "amplifier" || item.kind === "drums" ? "#e44942" : "#a7a5a0";
+  };
+  const selectedRole = selected ? performerRole(selected) : null;
 
   const fallback = (
     <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-[var(--color-fg-muted)]">
@@ -86,8 +92,8 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Camera">
+    <div className="stage-theme flex flex-col gap-4">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="toolbar" aria-label="Camera">
         <div className="flex" role="group" aria-label="Camera view">
           {VIEWS.map((v) => (
             <button
@@ -104,11 +110,14 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
         <button type="button" className={btn} onClick={() => setView((s) => ({ name: "perspective", nonce: s.nonce + 1 }))}>
           Reset camera
         </button>
+        <button type="button" className={btn} aria-pressed={showLabels} onClick={() => setShowLabels((v) => !v)}>
+          Labels
+        </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div
-          className="relative w-full overflow-hidden border border-[var(--color-border)] bg-black aspect-[4/3] md:aspect-[16/9]"
+          className="relative w-full overflow-hidden border border-[var(--color-border)] bg-[var(--stage-void)] aspect-[4/3] md:aspect-[16/9]"
           data-testid="stage-viewport"
           aria-label={`${artistName} 3D stage`}
           role="img"
@@ -123,6 +132,7 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
                 selectedId={selectedId}
                 view={view}
                 reducedMotion={reducedMotion}
+                showLabels={showLabels}
                 onSelect={setSelectedId}
                 onCameraChange={setCamera}
               />
@@ -137,7 +147,9 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
           <section className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 min-h-28" aria-live="polite">
             {selected ? (
               <>
-                <p className="text-xs font-mono uppercase tracking-widest text-[#2f8fff]">{KIND_INFO[selected.kind]}</p>
+                <p className="text-xs font-mono uppercase tracking-widest" style={{ color: dot(selected) }}>
+                  {selectedRole ? `${ROLE_STYLES[selectedRole].label} · hologram band member` : KIND_INFO[selected.kind]}
+                </p>
                 <p className="mt-1 text-lg font-semibold">{selected.label}</p>
                 <p className="mt-1 font-mono text-xs text-[var(--color-fg-muted)]">
                   {selected.position[2] > 1 ? "Downstage" : selected.position[2] < -1 ? "Upstage" : "Center stage"}
@@ -164,7 +176,7 @@ export function StageViewer({ items, artistName }: { items: StageItem[]; artistN
                       onClick={() => setSelectedId(item.id)}
                       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${item.id === selectedId ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"}`}
                     >
-                      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.kind === "performer" ? "#2f8fff" : "#a3a3a3" }} />
+                      <span aria-hidden="true" className="h-2.5 w-2.5" style={{ backgroundColor: dot(item), borderRadius: item.kind === "performer" ? 9999 : 2 }} />
                       {item.label}
                     </button>
                   </li>

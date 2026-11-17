@@ -11,7 +11,10 @@ import {
   isInsideStage,
   isMovable,
   moveItem,
+  normalizeStageLayout,
   nudgeItem,
+  performerRole,
+  ROLE_STYLES,
   parseStageLayout,
   rotateItem,
   validateAgainstReference,
@@ -28,7 +31,30 @@ describe("default layout", () => {
       expect(item.locked).toBe(true);
       expect(isMovable(item)).toBe(false);
     }
-    expect(layout.items.filter((i) => i.kind === "performer")).toHaveLength(4);
+    expect(layout.items.filter((i) => i.kind === "performer")).toHaveLength(5);
+  });
+});
+
+describe("character system", () => {
+  it("every default performer maps to a distinct role with a distinct color and base pattern", () => {
+    const roles = layout.items.map(performerRole).filter((r) => r !== null);
+    expect(new Set(roles)).toEqual(new Set(["vocal", "guitar", "bass", "drums", "keys"]));
+    const styles = Object.values(ROLE_STYLES);
+    expect(new Set(styles.map((s) => s.color)).size).toBe(5);
+    expect(new Set(styles.map((s) => s.base)).size).toBe(5);
+    expect(performerRole(find(layout, "drums"))).toBeNull();
+    expect(performerRole({ id: "x", kind: "performer", label: "Synth" })).toBe("keys");
+  });
+});
+
+describe("additive migration", () => {
+  it("adds items introduced later without touching saved coordinates", () => {
+    const saved = moveItem({ ...layout, items: layout.items.filter((i) => i.id !== "member-keys") }, "member-vocal", [1, 0, 1]);
+    const normalized = normalizeStageLayout(saved, layout);
+    expect(normalized.items.map((i) => i.id)).toContain("member-keys");
+    expect(find(normalized, "member-vocal").position).toEqual([1, 0, 1]);
+    expect(validateAgainstReference(normalized, layout)).toEqual([]);
+    expect(normalizeStageLayout(layout, layout)).toBe(layout);
   });
 });
 

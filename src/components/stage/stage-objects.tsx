@@ -1,62 +1,11 @@
 "use client";
 
 // Procedural stage props. No external models or textures are loaded.
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import type { Group } from "three";
-import type { StageItemKind } from "@/lib/stage";
+import { performerRole, type StageItem } from "@/lib/stage";
+import { HologramCharacter } from "./hologram-characters";
 
-export const HOLOGRAM_BLUE = "#2f8fff";
-
-/** Translucent blue hologram band member with a subtle float and scan shimmer. */
-export function HologramPerformer({ reducedMotion, highlighted, seed }: { reducedMotion: boolean; highlighted: boolean; seed: number }) {
-  const body = useRef<Group>(null);
-  useFrame(({ clock }) => {
-    if (!body.current || reducedMotion) return;
-    const t = clock.getElapsedTime() + seed;
-    body.current.position.y = Math.sin(t * 1.6) * 0.03;
-  });
-  const opacity = highlighted ? 0.7 : 0.48;
-  return (
-    <group>
-      {/* Projector base ring */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <ringGeometry args={[0.32, 0.4, 40]} />
-        <meshBasicMaterial color={HOLOGRAM_BLUE} transparent opacity={0.8} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <circleGeometry args={[0.32, 40]} />
-        <meshBasicMaterial color={HOLOGRAM_BLUE} transparent opacity={0.15} />
-      </mesh>
-      <group ref={body}>
-        {/* Legs + torso */}
-        <mesh position={[0, 0.85, 0]}>
-          <capsuleGeometry args={[0.2, 0.9, 6, 16]} />
-          <meshStandardMaterial color={HOLOGRAM_BLUE} emissive={HOLOGRAM_BLUE} emissiveIntensity={0.45} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
-        </mesh>
-        <mesh position={[0, 0.85, 0]}>
-          <capsuleGeometry args={[0.205, 0.9, 6, 12]} />
-          <meshBasicMaterial color="#7cc0ff" wireframe transparent opacity={0.3} />
-        </mesh>
-        {/* Shoulders / arms */}
-        <mesh position={[0, 1.35, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <capsuleGeometry args={[0.08, 0.5, 4, 8]} />
-          <meshStandardMaterial color={HOLOGRAM_BLUE} emissive={HOLOGRAM_BLUE} emissiveIntensity={0.45} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
-        </mesh>
-        {/* Head */}
-        <mesh position={[0, 1.72, 0]}>
-          <sphereGeometry args={[0.16, 20, 16]} />
-          <meshStandardMaterial color={HOLOGRAM_BLUE} emissive={HOLOGRAM_BLUE} emissiveIntensity={0.55} transparent opacity={opacity + 0.1} depthWrite={false} toneMapped={false} />
-        </mesh>
-        {/* Light column */}
-        <mesh position={[0, 0.95, 0]}>
-          <cylinderGeometry args={[0.38, 0.38, 1.9, 24, 1, true]} />
-          <meshBasicMaterial color={HOLOGRAM_BLUE} transparent opacity={0.06} depthWrite={false} side={2} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
+/** Stage-palette light color used for scene lighting. */
+export const STAGE_LIGHT_BLUE = "#367cfa";
 
 function Guitar({ long }: { long?: boolean }) {
   const neck = long ? 0.85 : 0.65;
@@ -181,10 +130,10 @@ function Drums() {
   );
 }
 
-export function StageProp({ kind, reducedMotion, highlighted, seed }: { kind: StageItemKind; reducedMotion: boolean; highlighted: boolean; seed: number }) {
-  switch (kind) {
+export function StageProp({ item, reducedMotion, highlighted, seed }: { item: Pick<StageItem, "id" | "kind" | "label">; reducedMotion: boolean; highlighted: boolean; seed: number }) {
+  switch (item.kind) {
     case "performer":
-      return <HologramPerformer reducedMotion={reducedMotion} highlighted={highlighted} seed={seed} />;
+      return <HologramCharacter role={performerRole(item) ?? "vocal"} selected={highlighted} reducedMotion={reducedMotion} seed={seed} />;
     case "guitar":
       return <Guitar />;
     case "bass":

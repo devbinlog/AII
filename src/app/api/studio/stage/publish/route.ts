@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, requireStudio } from "@/lib/studio/api";
-import { defaultStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
+import { defaultStageLayout, normalizeStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
 
 /**
  * Publish the saved draft as a new immutable version (artist admins only).
@@ -16,8 +16,12 @@ export async function POST(req: NextRequest) {
   if (!draft) return apiError("UNPROCESSABLE", 422, "Save the stage layout before publishing");
   const parsed = parseStageLayout(draft);
   if (!parsed.ok) return apiError("INVALID_LAYOUT", 422, parsed.error);
-  const problems = validateAgainstReference(parsed.layout, defaultStageLayout(ctx.artistId));
+  const reference = defaultStageLayout(ctx.artistId);
+  // Drafts saved before new default items existed get them added (and stored) first.
+  const normalized = normalizeStageLayout(parsed.layout, reference);
+  const problems = validateAgainstReference(normalized, reference);
   if (problems.length > 0) return apiError("INVALID_LAYOUT", 422, problems[0], problems);
+  if (normalized !== parsed.layout) await repo.stage.save(normalized);
 
   const version = await repo.stage.publish(ctx.artistId, ctx.session.userId);
   await repo.audit.log({

@@ -9,9 +9,12 @@ import {
   initHistory,
   isMovable,
   moveItem,
+  performerRole,
+  ROLE_STYLES,
   nudgeItem,
   rotateItem,
   type CameraView,
+  type StageItem,
   type StageLayout,
   type Vec3,
 } from "@/lib/stage";
@@ -82,6 +85,8 @@ export function StageConfigurator({
   const [versionCount, setVersionCount] = useState(publish.versionCount);
   const [result, setResult] = useState<{ ok: boolean; message: string; details?: string[] } | null>(null);
   const [webgl, setWebgl] = useState<boolean | null>(null);
+  const [focus, setFocus] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const reducedMotion = useReducedMotion();
   const dragStart = useRef<StageLayout | null>(null);
 
@@ -129,6 +134,7 @@ export function StageConfigurator({
         dispatch({ type: "redo" });
         return;
       }
+      if (k === "escape") setFocus(false);
       if (!selectedId || e.ctrlKey || e.metaKey || e.altKey) return;
       const d = e.shiftKey ? GRID_STEP * 4 : GRID_STEP;
       const moves: Record<string, [number, number]> = { arrowleft: [-d, 0], arrowright: [d, 0], arrowup: [0, -d], arrowdown: [0, d] };
@@ -193,50 +199,107 @@ export function StageConfigurator({
     } else setResult({ ok: false, message: res.message });
   }
 
-  const btn = "h-10 min-w-10 px-3 text-sm border border-[var(--color-border-strong)] hover:border-[var(--color-fg)] disabled:opacity-40 disabled:hover:border-[var(--color-border-strong)]";
+  const btn =
+    "h-9 min-w-9 shrink-0 px-3 text-sm border border-[var(--color-border-strong)] hover:border-[var(--color-fg)] disabled:opacity-40 disabled:hover:border-[var(--color-border-strong)]";
+  const members = layout.items.filter((i) => i.kind === "performer");
+  const gear = layout.items.filter((i) => i.kind !== "performer");
+  const role = selected ? performerRole(selected) : null;
+  const savedTime = lastSaved ? new Date(lastSaved).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" }) : null;
+
+  const itemButton = (item: StageItem) => {
+    const r = performerRole(item);
+    const color = r ? ROLE_STYLES[r].color : isMovable(item) ? "#a7a5a0" : "#e44942";
+    return (
+      <li key={item.id}>
+        <button
+          type="button"
+          onClick={() => setSelectedId(item.id)}
+          aria-pressed={item.id === selectedId}
+          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${item.id === selectedId ? "bg-white/[0.07]" : "hover:bg-white/[0.03]"}`}
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0" style={{ backgroundColor: color, borderRadius: r ? 9999 : 2 }} />
+            <span className="truncate">{item.label}</span>
+          </span>
+          <span className="text-[10px] font-mono uppercase text-[var(--color-fg-muted)]">{isMovable(item) ? (r ? "performer" : item.kind) : "locked"}</span>
+        </button>
+      </li>
+    );
+  };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Stage tools">
-        <div className="flex" role="group" aria-label="Camera view">
+    <div className="flex flex-col gap-3">
+      {/* Toolbar: camera on the left, history on the right; scrolls horizontally on phones */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="toolbar" aria-label="Stage tools">
+        <div className="flex shrink-0" role="group" aria-label="Camera view">
           {VIEWS.map((v) => (
-            <button key={v.name} type="button" aria-pressed={view.name === v.name} onClick={() => setView((s) => ({ name: v.name, nonce: s.nonce + 1 }))} className={`${btn} -ml-px first:ml-0 ${view.name === v.name ? "bg-white/[0.08] border-[var(--color-fg)]" : ""}`}>
+            <button
+              key={v.name}
+              type="button"
+              aria-pressed={view.name === v.name}
+              onClick={() => setView((s) => ({ name: v.name, nonce: s.nonce + 1 }))}
+              className={`${btn} -ml-px first:ml-0 ${view.name === v.name ? "bg-white/[0.08] border-[var(--color-fg)]" : ""}`}
+            >
               {v.label}
             </button>
           ))}
         </div>
-        <button type="button" className={btn} onClick={() => setView((s) => ({ name: "perspective", nonce: s.nonce + 1 }))}>Reset camera</button>
-        <span className="mx-1 h-6 w-px bg-[var(--color-border)]" aria-hidden="true" />
-        <button type="button" className={btn} onClick={() => dispatch({ type: "undo" })} disabled={history.past.length === 0} title="Undo (Ctrl+Z)">Undo</button>
-        <button type="button" className={btn} onClick={() => dispatch({ type: "redo" })} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z)">Redo</button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono text-[var(--color-fg-muted)]" aria-live="polite">{dirty ? "Unsaved changes" : lastSaved ? "Saved" : "Default layout"}</span>
-          <button type="button" className={btn} onClick={() => void restore()} disabled={busy !== null}>Restore saved</button>
-          {canEdit && (
-            <>
-              <button type="button" className={btn} onClick={() => step(() => defaultStageLayout(layout.artistId))}>Default layout</button>
-              <button type="button" onClick={() => void save()} disabled={busy !== null || !dirty} className="h-10 px-4 text-sm font-semibold bg-[var(--color-accent)] text-white disabled:opacity-40">
-                {busy === "save" ? "Saving…" : "Save layout"}
-              </button>
-            </>
-          )}
-        </div>
+        <button type="button" className={btn} onClick={() => setView((s) => ({ name: "perspective", nonce: s.nonce + 1 }))}>
+          Reset camera
+        </button>
+        <button type="button" className={btn} aria-pressed={showLabels} onClick={() => setShowLabels((v) => !v)}>
+          Labels
+        </button>
+        <button type="button" className={btn} aria-pressed={focus} onClick={() => setFocus((v) => !v)} title="Focus the viewport (Esc to exit)">
+          {focus ? "Exit focus" : "Focus"}
+        </button>
+        <span className="mx-1 h-6 w-px shrink-0 bg-[var(--color-border)]" aria-hidden="true" />
+        <button type="button" className={btn} onClick={() => dispatch({ type: "undo" })} disabled={history.past.length === 0} title="Undo (Ctrl+Z)">
+          Undo
+        </button>
+        <button type="button" className={btn} onClick={() => dispatch({ type: "redo" })} disabled={history.future.length === 0} title="Redo (Ctrl+Shift+Z)">
+          Redo
+        </button>
       </div>
-      <FormMessage result={result} />
 
-      <section aria-label="Public stage" className="flex flex-wrap items-center gap-3 border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm">
-        <span className={`inline-flex items-center px-2 py-0.5 border text-[11px] font-mono uppercase tracking-wider ${published ? "border-emerald-500/50 text-emerald-400" : "border-[var(--color-border-strong)] text-[var(--color-fg-muted)]"}`}>
+      {/* Status bar: draft save state + public state */}
+      <div className="flex flex-wrap items-center gap-2 border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm" aria-label="Layout status">
+        <span className="flex items-center gap-2 text-xs font-mono" aria-live="polite">
+          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: dirty ? "var(--stage-amber)" : "var(--stage-cyan)" }} />
+          {dirty ? "Unsaved changes" : savedTime ? `Saved ${savedTime}` : "Default layout"}
+        </span>
+        <span
+          className={`inline-flex items-center px-2 py-0.5 border text-[11px] font-mono uppercase tracking-wider ${published ? "border-emerald-500/50 text-emerald-400" : "border-[var(--color-border-strong)] text-[var(--color-fg-muted)]"}`}
+        >
           {published ? "Public" : "Not public"}
         </span>
-        <span className="text-[var(--color-fg-muted)]">
+        <span className="text-xs text-[var(--color-fg-muted)]">
           {published ? `Fans see v${published.version}` : versionCount > 0 ? "Unpublished — fans cannot open the stage" : "Never published"}
         </span>
         {published && (
-          <a href={`/artists/${publish.artistSlug}/stage`} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+          <a href={`/artists/${publish.artistSlug}/stage`} target="_blank" rel="noreferrer" className="text-xs underline underline-offset-4">
             Open public stage
           </a>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" className={btn} onClick={() => void restore()} disabled={busy !== null}>
+            Restore saved
+          </button>
+          {canEdit && (
+            <>
+              <button type="button" className={btn} onClick={() => step(() => defaultStageLayout(layout.artistId))}>
+                Default layout
+              </button>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={busy !== null || !dirty}
+                className="h-9 px-4 text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-40"
+              >
+                {busy === "save" ? "Saving…" : "Save layout"}
+              </button>
+            </>
+          )}
           {publish.canPublish ? (
             <>
               <button
@@ -244,7 +307,7 @@ export function StageConfigurator({
                 className={btn}
                 onClick={() => void publishStage()}
                 disabled={busy !== null || dirty || !lastSaved}
-                title={dirty ? "Save the layout first" : !lastSaved ? "Save the layout first" : "Publish the saved layout"}
+                title={dirty || !lastSaved ? "Save the layout first" : "Publish the saved layout"}
               >
                 {busy === "publish" ? "Publishing…" : published ? "Publish new version" : "Publish stage"}
               </button>
@@ -258,11 +321,35 @@ export function StageConfigurator({
             <span className="text-xs text-[var(--color-fg-muted)]">An artist admin publishes the stage.</span>
           )}
         </div>
-        {publish.canPublish && (dirty || !lastSaved) && <p className="w-full text-xs text-[var(--color-fg-muted)]">Only the saved layout can be published. Save your changes first.</p>}
-      </section>
+        {publish.canPublish && (dirty || !lastSaved) && (
+          <p className="w-full text-xs text-[var(--color-fg-muted)]">Only the saved layout can be published. Save your changes first.</p>
+        )}
+      </div>
+      <FormMessage result={result} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="relative w-full overflow-hidden border border-[var(--color-border)] bg-black aspect-[4/3] md:aspect-[16/9]" data-testid="stage-viewport">
+      <div className={`stage-theme grid gap-3 ${focus ? "grid-cols-1" : "xl:grid-cols-[220px_minmax(0,1fr)_280px]"}`}>
+        {/* Left — session members and objects */}
+        {!focus && (
+          <aside className="order-2 xl:order-1 flex flex-col gap-3" aria-label="Stage objects">
+            {[
+              { title: "Session members", list: members },
+              { title: "Instruments & backline", list: gear },
+            ].map((g) => (
+              <section key={g.title} className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                <h2 className="px-3 py-2 border-b border-[var(--color-border)] text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-fg-muted)]">
+                  {g.title}
+                </h2>
+                <ul className="divide-y divide-[var(--color-border)]">{g.list.map(itemButton)}</ul>
+              </section>
+            ))}
+          </aside>
+        )}
+
+        {/* Center — interactive stage */}
+        <div
+          className={`order-1 xl:order-2 relative w-full overflow-hidden border border-[var(--color-border)] bg-[var(--stage-void)] ${focus ? "h-[78vh] min-h-[420px]" : "aspect-[4/3] md:aspect-[16/9]"}`}
+          data-testid="stage-viewport"
+        >
           {webgl === false ? (
             <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-[var(--color-fg-muted)]">
               3D needs WebGL, which this browser has turned off. You can still arrange the stage with the item list.
@@ -274,6 +361,7 @@ export function StageConfigurator({
               selectedId={selectedId}
               view={view}
               reducedMotion={reducedMotion}
+              showLabels={showLabels}
               onSelect={setSelectedId}
               onDrag={onDrag}
               onDragStart={onDragStart}
@@ -286,35 +374,38 @@ export function StageConfigurator({
           </p>
         </div>
 
-        <aside className="flex flex-col gap-4">
-          <section className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <h2 className="px-3 py-2 border-b border-[var(--color-border)] text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-fg-muted)]">Stage items</h2>
-            <ul className="max-h-72 overflow-y-auto divide-y divide-[var(--color-border)]">
-              {layout.items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(item.id)}
-                    aria-pressed={item.id === selectedId}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${item.id === selectedId ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"}`}
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.kind === "performer" ? "#38a8ff" : isMovable(item) ? "#a3a3a3" : "#e8192c" }} />
-                      <span className="truncate">{item.label}</span>
-                    </span>
-                    <span className="text-[10px] font-mono uppercase text-[var(--color-fg-muted)]">{isMovable(item) ? item.kind : "locked"}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-sm" aria-live="polite">
+        {/* Right — inspector */}
+        {!focus && (
+          <aside className="order-3 self-start border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-sm" aria-label="Inspector" aria-live="polite">
+            <h2 className="mb-3 text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-fg-muted)]">Inspector</h2>
             {selected ? (
               <>
-                <p className="font-medium">{selected.label}</p>
-                <p className="mt-1 font-mono text-xs text-[var(--color-fg-muted)]">
-                  x {selected.position[0].toFixed(2)} · z {selected.position[2].toFixed(2)} · {Math.round((selected.rotationY * 180) / Math.PI)}°
+                <p className="flex items-center gap-2 font-medium">
+                  <span
+                    aria-hidden="true"
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: role ? ROLE_STYLES[role].color : isMovable(selected) ? "#a7a5a0" : "#e44942" }}
+                  />
+                  {selected.label}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--color-fg-muted)]">{role ? `${ROLE_STYLES[role].label} hologram` : selected.kind}</p>
+                <dl className="mt-3 grid grid-cols-3 gap-2 font-mono text-xs">
+                  <div>
+                    <dt className="text-[var(--color-fg-muted)]">X</dt>
+                    <dd>{selected.position[0].toFixed(2)} m</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--color-fg-muted)]">Z</dt>
+                    <dd>{selected.position[2].toFixed(2)} m</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--color-fg-muted)]">Rot</dt>
+                    <dd>{Math.round((selected.rotationY * 180) / Math.PI)}°</dd>
+                  </div>
+                </dl>
+                <p className="mt-3 inline-flex items-center gap-1.5 text-xs" style={{ color: isMovable(selected) ? "var(--stage-cyan)" : "var(--aii-signal)" }}>
+                  <span aria-hidden="true">{isMovable(selected) ? "◇" : "■"}</span>
+                  {isMovable(selected) ? "Movable" : "Locked in place — amplifiers and drums cannot be moved."}
                 </p>
                 {isMovable(selected) && canEdit ? (
                   <div className="mt-3 grid grid-cols-3 gap-1 w-max" role="group" aria-label={`Move ${selected.label}`}>
@@ -325,16 +416,16 @@ export function StageConfigurator({
                     <button type="button" className={btn} onClick={() => step((l) => nudgeItem(l, selected.id, 0, GRID_STEP))} aria-label="Move downstage">↓</button>
                     <button type="button" className={btn} onClick={() => step((l) => nudgeItem(l, selected.id, GRID_STEP, 0))} aria-label="Move stage left">→</button>
                   </div>
-                ) : (
-                  <p className="mt-2 text-xs text-[var(--color-accent)]">{isMovable(selected) ? "Read-only for your role." : "Locked in place — amplifiers and drums cannot be moved."}</p>
-                )}
+                ) : isMovable(selected) ? (
+                  <p className="mt-2 text-xs text-[var(--color-fg-muted)]">Read-only for your role.</p>
+                ) : null}
                 <p className="mt-3 text-[11px] text-[var(--color-fg-muted)]">Keyboard: arrows move (Shift = 1 m), Q / E rotate, Esc deselect.</p>
               </>
             ) : (
               <p className="text-[var(--color-fg-muted)]">Select a member or instrument on the stage or in the list.</p>
             )}
-          </section>
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* Machine-readable state for automated tests; hidden from assistive tech. */}

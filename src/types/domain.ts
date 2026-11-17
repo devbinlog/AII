@@ -318,6 +318,8 @@ export interface ExperienceVersion {
   snapshot: {
     scenes: ExperienceScene[];
     sceneSchemas: Record<ID, SceneSchema>; // sceneId → frozen schema
+    /** Fan-editable parameters frozen at publish. Absent on versions published before WS-05. */
+    editableParameters?: EditableParameter[];
   };
   rendererVersion: Semver;
   publishedAt: Timestamp;

@@ -108,7 +108,11 @@ function freezeFixtureVersion(version: ExperienceVersion): ExperienceVersion {
     const scene = MOCK_SCENES.find((s) => s.id === es.sceneId);
     if (scene) sceneSchemas[es.sceneId] = scene.schema;
   }
-  return structuredClone({ ...version, snapshot: { ...version.snapshot, sceneSchemas } });
+  const experience = MOCK_EXPERIENCES.find((e) => e.id === version.experienceId);
+  return structuredClone({
+    ...version,
+    snapshot: { ...version.snapshot, sceneSchemas, editableParameters: version.snapshot.editableParameters ?? experience?.editableParameters ?? [] },
+  });
 }
 
 function createStore() {
@@ -508,7 +512,7 @@ const mockExperience: ExperienceRepository = {
       experienceId: id,
       version: `${published + 1}.0.0`,
       schemaVersions,
-      snapshot: { scenes: exp.scenes, sceneSchemas },
+      snapshot: { scenes: exp.scenes, sceneSchemas, editableParameters: exp.editableParameters },
       rendererVersion: "1.0.0",
       publishedAt: now(),
       publishedBy,

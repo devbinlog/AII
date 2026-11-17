@@ -85,7 +85,7 @@ export default async function CreatePage({ params }: PageProps) {
       campaign={campaign}
       experience={experience}
       experienceVersion={experienceVersion}
-      editableParameters={experience.editableParameters}
+      editableParameters={experienceVersion.snapshot.editableParameters ?? experience.editableParameters}
       isLoggedIn={isLoggedIn}
       campaignSlug={slug}
     />

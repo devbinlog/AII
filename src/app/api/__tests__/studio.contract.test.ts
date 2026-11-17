@@ -262,6 +262,18 @@ describe("Experience publish contract and frozen versions", () => {
     const frozen = await getRepository().experience.findVersionById(v1.id);
     const frozenObj = frozen?.snapshot.sceneSchemas[scene.id]?.objects[0];
     expect(frozenObj?.data).toEqual({ type: "text", content: "Version One" });
+    // Fan parameters are frozen with the version too
+    expect(frozen?.snapshot.editableParameters?.map((p) => p.label)).toEqual(["Title"]);
+    await experienceRoute.PATCH(
+      req(`/api/studio/experiences/${experience.id}`, {
+        method: "PATCH",
+        token: editor,
+        body: { editableParameters: [{ id: "p1", sceneId: scene.id, objectId: "t1", property: "data.content", label: "Renamed", type: "text", defaultValue: "x" }] },
+      }),
+      ctx(experience.id)
+    );
+    const stillFrozen = await getRepository().experience.findVersionById(v1.id);
+    expect(stillFrozen?.snapshot.editableParameters?.map((p) => p.label)).toEqual(["Title"]);
 
     const second = await publish(admin);
     const v2 = (await json<{ version: { id: string; version: string } }>(second)).version;

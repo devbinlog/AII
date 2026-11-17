@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
 import { StageViewer } from "@/components/stage/stage-viewer";
+import { getArtistTheme } from "@/lib/theme/artist-theme";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -29,16 +30,21 @@ export default async function PublicStagePage({ params }: PageProps) {
   const data = await load(slug);
   if (!data) notFound();
   const { artist, stage } = data;
+  // Artist identity only tints the header rule; the stage itself uses the AII Stage palette.
+  const theme = getArtistTheme(artist);
 
   return (
-    <main className="studio flex-1 bg-[var(--color-bg)] text-[var(--color-fg)]">
+    <main className="studio stage-theme flex-1 bg-[var(--color-bg)] text-[var(--color-fg)]">
       <div className="max-w-[var(--container-2xl)] mx-auto px-4 md:px-6 py-8 md:py-12">
         <Link href={`/artists/${artist.slug}`} className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
           ← {artist.name}
         </Link>
-        <header className="mt-4 mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <header
+          className="mt-4 mb-6 flex flex-col gap-2 border-b pb-5 md:flex-row md:items-end md:justify-between"
+          style={{ ...theme.cssVars, borderColor: "var(--artist-primary)" }}
+        >
           <div>
-            <p className="caption-label" style={{ color: "#2f8fff" }}>Live Stage</p>
+            <p className="caption-label" style={{ color: "var(--stage-cyan)" }}>Live Stage</p>
             <h1 className="heading-display mt-2" style={{ fontSize: "clamp(2.25rem,6vw,4.5rem)", lineHeight: 0.95 }}>
               {artist.name}
             </h1>

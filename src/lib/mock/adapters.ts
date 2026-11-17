@@ -101,18 +101,30 @@ function paginate<T>(items: T[], query: PaginationQuery): { items: T[]; total: n
 // In-memory stores (clone so mutations don't corrupt fixtures)
 // ============================================================
 
+function freezeFixtureVersion(version: ExperienceVersion): ExperienceVersion {
+  const sceneSchemas: Record<string, SceneSchema> = { ...version.snapshot.sceneSchemas };
+  for (const es of version.snapshot.scenes) {
+    if (sceneSchemas[es.sceneId]) continue;
+    const scene = MOCK_SCENES.find((s) => s.id === es.sceneId);
+    if (scene) sceneSchemas[es.sceneId] = scene.schema;
+  }
+  return structuredClone({ ...version, snapshot: { ...version.snapshot, sceneSchemas } });
+}
+
 function createStore() {
   return {
     idCounter: 1000,
-    users: [...MOCK_USERS] as User[],
-    artists: [...MOCK_ARTISTS] as Artist[],
-    releases: [...MOCK_RELEASES] as Release[],
-    scenes: [...MOCK_SCENES] as Scene[],
-    experiences: [...MOCK_EXPERIENCES] as Experience[],
-    experienceVersions: [...MOCK_EXPERIENCE_VERSIONS] as ExperienceVersion[],
-    campaigns: [...MOCK_CAMPAIGNS] as Campaign[],
-    artworks: [...MOCK_ARTWORKS] as FanArtwork[],
-    assets: [...MOCK_ASSETS] as MediaAsset[],
+    users: structuredClone(MOCK_USERS) as User[],
+    artists: structuredClone(MOCK_ARTISTS) as Artist[],
+    releases: structuredClone(MOCK_RELEASES) as Release[],
+    scenes: structuredClone(MOCK_SCENES) as Scene[],
+    experiences: structuredClone(MOCK_EXPERIENCES) as Experience[],
+    // Fixture versions leave sceneSchemas empty; freeze them from the fixture
+    // scenes once, so later scene edits never change a published version.
+    experienceVersions: MOCK_EXPERIENCE_VERSIONS.map((v) => freezeFixtureVersion(v)),
+    campaigns: structuredClone(MOCK_CAMPAIGNS) as Campaign[],
+    artworks: structuredClone(MOCK_ARTWORKS) as FanArtwork[],
+    assets: structuredClone(MOCK_ASSETS) as MediaAsset[],
     sessions: new Map<string, Session>(),
     auditLogs: [] as AuditLogEntry[],
     likes: new Set<string>(), // `${userId}:${artworkId}`
@@ -377,7 +389,15 @@ const mockScene: SceneRepository = {
   async save(id, schema) {
     const idx = store.scenes.findIndex((s) => s.id === id);
     if (idx === -1) throw new Error("SCENE_NOT_FOUND");
-    const updated = { ...store.scenes[idx]!, schema, updatedAt: now() };
+    const updated = { ...store.scenes[idx]!, schema: structuredClone(schema), updatedAt: now() };
+    store.scenes[idx] = updated;
+    return updated;
+  },
+
+  async updateMeta(id, data) {
+    const idx = store.scenes.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error("SCENE_NOT_FOUND");
+    const updated = { ...store.scenes[idx]!, ...data, updatedAt: now() };
     store.scenes[idx] = updated;
     return updated;
   },
@@ -422,14 +442,16 @@ const mockExperience: ExperienceRepository = {
 
   async findVersionById(versionId) {
     const version = store.experienceVersions.find((v) => v.id === versionId) ?? null;
-    if (!version) return null;
-    // Populate sceneSchemas lazily from store
-    const sceneSchemas: Record<string, SceneSchema> = {};
-    for (const es of version.snapshot.scenes) {
-      const scene = store.scenes.find((s) => s.id === es.sceneId);
-      if (scene) sceneSchemas[es.sceneId] = scene.schema;
-    }
-    return { ...version, snapshot: { ...version.snapshot, sceneSchemas } };
+    // Published versions are immutable snapshots; hand out a copy.
+    return version ? structuredClone(version) : null;
+  },
+
+  async listVersions(experienceId) {
+    return structuredClone(
+      store.experienceVersions
+        .filter((v) => v.experienceId === experienceId)
+        .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    );
   },
 
   async listByArtist(artistId, query) {
@@ -470,27 +492,30 @@ const mockExperience: ExperienceRepository = {
     const exp = store.experiences.find((e) => e.id === id);
     if (!exp) throw new Error("EXPERIENCE_NOT_FOUND");
     const versionId = newId("expv");
-    await mockExperience.update(id, {
-      status: "published",
-      currentVersionId: versionId,
-    });
     const sceneSchemas: Record<string, SceneSchema> = {};
+    const schemaVersions: Record<string, string> = {};
     for (const es of exp.scenes) {
       const scene = store.scenes.find((s) => s.id === es.sceneId);
-      if (scene) sceneSchemas[es.sceneId] = scene.schema;
+      if (scene) {
+        sceneSchemas[es.sceneId] = scene.schema;
+        schemaVersions[es.sceneId] = scene.schema.version;
+      }
     }
-    const version: ExperienceVersion = {
+    const published = store.experienceVersions.filter((v) => v.experienceId === id).length;
+    // Deep copy: the snapshot must not share objects with the editable scenes.
+    const version: ExperienceVersion = structuredClone({
       id: versionId,
       experienceId: id,
-      version: "1.0.0",
-      schemaVersions: {},
+      version: `${published + 1}.0.0`,
+      schemaVersions,
       snapshot: { scenes: exp.scenes, sceneSchemas },
       rendererVersion: "1.0.0",
       publishedAt: now(),
       publishedBy,
-    };
+    });
     store.experienceVersions.push(version);
-    return version;
+    await mockExperience.update(id, { status: "published", currentVersionId: versionId });
+    return structuredClone(version);
   },
 
   async delete(id) {
@@ -530,7 +555,8 @@ const mockCampaign: CampaignRepository = {
   },
 
   async listPublic(query) {
-    let items = [...store.campaigns];
+    // Drafts are never public, even when no status filter is given.
+    let items = store.campaigns.filter((c) => c.status !== "draft");
     if (query.status) items = items.filter((c) => c.status === query.status);
     const { items: campaigns, total } = paginate(items, query);
     return { campaigns, total };
@@ -539,7 +565,7 @@ const mockCampaign: CampaignRepository = {
   async create(data: CreateCampaignRequest) {
     const campaign: Campaign = {
       id: newId("cmp"),
-      slug: data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      slug: data.slug ?? data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
       artistId: data.artistId,
       experienceId: data.experienceId,
       title: data.title,
@@ -740,12 +766,12 @@ const mockMedia: MediaRepository = {
       filename: data.filename,
       mimeType: data.mimeType,
       sizeBytes: data.sizeBytes,
-      url: `/mock/uploads/${data.filename}`,
-      thumbnailUrl: null,
+      url: data.previewDataUrl ?? `/mock/uploads/${encodeURIComponent(data.filename)}`,
+      thumbnailUrl: data.previewDataUrl ?? null,
       altText: data.altText ?? null,
       tags: data.tags ?? [],
       usedIn: [],
-      uploadedBy: "mock_user",
+      uploadedBy: data.uploadedBy ?? "mock_user",
       createdAt: now(),
     };
     store.assets.push(asset);

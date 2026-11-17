@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign, isPublicExperience, isPublicRelease } from "@/lib/public-visibility";
 import { Badge } from "@/components/ui/badge";
 import { formatCount, formatDate, formatDuration } from "@/lib/utils/format";
 import type { Release, Experience } from "@/types";
@@ -168,9 +169,9 @@ export default async function ArtistProfilePage({ params }: PageProps) {
     repo.experience.listByArtist(artist.id, { page: 1, pageSize: 10 }),
   ]);
 
-  const releases = releaseResult.releases;
-  const campaigns = campaignResult.campaigns;
-  const experiences = experienceResult.experiences;
+  const releases = releaseResult.releases.filter(isPublicRelease);
+  const campaigns = campaignResult.campaigns.filter(isPublicCampaign);
+  const experiences = experienceResult.experiences.filter(isPublicExperience);
 
   const socialEntries = Object.entries(artist.socialLinks).filter(
     ([, v]) => v !== undefined && v !== null && v !== ""

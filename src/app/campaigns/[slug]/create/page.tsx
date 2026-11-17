@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign } from "@/lib/public-visibility";
 import { getSession } from "@/lib/auth/session";
 import { FanCreatorClient } from "./_components/fan-creator-client";
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }: PageProps) {
   const repo = getRepository();
   const campaign = await repo.campaign.findBySlug(slug);
   return {
-    title: campaign ? `Create — ${campaign.title}` : "Create Artwork",
+    title: campaign && isPublicCampaign(campaign) ? `Create — ${campaign.title}` : "Create Artwork",
   };
 }
 
@@ -24,7 +25,7 @@ export default async function CreatePage({ params }: PageProps) {
 
   // Load campaign
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) return notFound();
+  if (!campaign || !isPublicCampaign(campaign)) return notFound();
 
   // Check campaign is active
   if (campaign.status !== "active") {

@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign, isPublicExperience, isPublicRelease } from "@/lib/public-visibility";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDuration, formatCount } from "@/lib/utils/format";
 import type { Artist, Campaign, Experience } from "@/types";
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const repo = getRepository();
   const release = await repo.release.findById(id);
-  if (!release) return { title: "Release Not Found" };
+  if (!release || !isPublicRelease(release)) return { title: "Release Not Found" };
   return {
     title: release.title,
     description: release.description,
@@ -82,7 +83,7 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
   const repo = getRepository();
 
   const release = await repo.release.findById(id);
-  if (!release) notFound();
+  if (!release || !isPublicRelease(release)) notFound();
 
   const artist = await repo.artist.findById(release.artistId) as Artist | null;
 
@@ -95,10 +96,11 @@ export default async function ReleaseDetailPage({ params }: PageProps) {
       repo.experience.listByArtist(artist.id, { page: 1, pageSize: 20 }),
       repo.campaign.listByArtist(artist.id, { page: 1, pageSize: 20 }),
     ]);
-    linkedExperience = expResult.experiences.find((e) => e.releaseId === release.id) ?? null;
+    linkedExperience =
+      expResult.experiences.find((e) => e.releaseId === release.id && isPublicExperience(e)) ?? null;
     if (linkedExperience) {
       linkedCampaign =
-        campResult.campaigns.find((c) => c.experienceId === linkedExperience!.id) ?? null;
+        campResult.campaigns.find((c) => c.experienceId === linkedExperience!.id && isPublicCampaign(c)) ?? null;
     }
   }
 

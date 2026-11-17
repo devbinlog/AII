@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign } from "@/lib/public-visibility";
 import { ExperienceClient } from "./_components/experience-client";
 import type { ExperienceVersion } from "@/types/domain";
 
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const repo = getRepository();
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) return { title: "Experience Not Found" };
+  if (!campaign || !isPublicCampaign(campaign)) return { title: "Experience Not Found" };
   return {
     title: `${campaign.title} — Experience`,
     description: campaign.description,
@@ -39,7 +40,7 @@ export default async function CampaignExperiencePage({ params }: PageProps) {
 
   // 1. Load campaign by slug
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) notFound();
+  if (!campaign || !isPublicCampaign(campaign)) notFound();
 
   // 2. Load experience
   const experience = await repo.experience.findById(campaign.experienceId);

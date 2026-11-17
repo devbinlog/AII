@@ -85,6 +85,7 @@ export interface SceneRepository {
   listByArtist(artistId: string, query: PaginationQuery): Promise<{ scenes: Scene[]; total: number }>;
   create(data: CreateSceneRequest, createdBy: string): Promise<Scene>;
   save(id: string, schema: Scene["schema"]): Promise<Scene>;
+  updateMeta(id: string, data: Partial<Pick<Scene, "name" | "description">>): Promise<Scene>;
   delete(id: string): Promise<void>;
   duplicate(id: string): Promise<Scene>;
   listVersionHistory(id: string): Promise<Array<{ version: string; savedAt: string; thumbnail: string | null }>>;
@@ -97,9 +98,11 @@ export interface SceneRepository {
 export interface ExperienceRepository {
   findById(id: string): Promise<Experience | null>;
   findVersionById(versionId: string): Promise<ExperienceVersion | null>;
+  /** Published versions of an experience, newest first. */
+  listVersions(experienceId: string): Promise<ExperienceVersion[]>;
   listByArtist(artistId: string, query: PaginationQuery): Promise<{ experiences: Experience[]; total: number }>;
   create(data: CreateExperienceRequest): Promise<Experience>;
-  update(id: string, data: Partial<Pick<Experience, "title" | "description" | "coverImageUrl" | "scenes" | "status" | "currentVersionId">>): Promise<Experience>;
+  update(id: string, data: Partial<Pick<Experience, "title" | "description" | "coverImageUrl" | "releaseId" | "scenes" | "editableParameters" | "status" | "currentVersionId">>): Promise<Experience>;
   publish(id: string, publishedBy: string): Promise<ExperienceVersion>;
   delete(id: string): Promise<void>;
   incrementPlayCount(id: string): Promise<void>;

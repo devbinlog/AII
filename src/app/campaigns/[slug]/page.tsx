@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign } from "@/lib/public-visibility";
 import { formatCount } from "@/lib/utils/format";
 import { CampaignHero } from "./_components/campaign-hero";
 import { CampaignMeta } from "./_components/campaign-meta";
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const repo = getRepository();
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) return { title: "Campaign Not Found" };
+  if (!campaign || !isPublicCampaign(campaign)) return { title: "Campaign Not Found" };
   return {
     title: campaign.title,
     description: campaign.description,
@@ -72,7 +73,7 @@ export default async function CampaignLandingPage({ params }: PageProps) {
   const repo = getRepository();
 
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) notFound();
+  if (!campaign || !isPublicCampaign(campaign)) notFound();
 
   const isViewable = campaign.status === "active" || campaign.status === "scheduled";
 

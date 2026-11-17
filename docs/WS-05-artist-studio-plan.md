@@ -13,6 +13,40 @@ Mode: `MOCK_ONLY` — no real DB / API / storage. Production adapters stay out o
 | Studio entry point | Navbar links to `/studio` — **route does not exist yet (404)** |
 | Artwork authorization helpers | `src/lib/auth/artwork-access.ts`, `src/lib/auth/request-session.ts` — reuse the pattern for Studio guards |
 
+## 1a. Dependency audit (STEP 3, 2026-11-17)
+
+| Dependency | Finding | Action for WS-05 |
+|---|---|---|
+| Scene DSL (`SceneSchemaZod`) | Validates shape and limits (200 objects, 500 interactions). Does **not** check that `interactions[].objectId` / `group.childIds` reference existing objects | Studio scene save adds a referential check |
+| Scene Runtime | `setSchema / play / pause / resume / reset / seek / getSnapshot`; mock audio via `setMockAudioFn` | Reused as the editor preview |
+| ExperienceVersion | **Defect:** mock `findVersionById` re-reads scene schemas from the live scene store, so editing a scene changed already-published experiences. `publish()` always wrote version `1.0.0` | Snapshot is deep-copied at publish and returned as stored; versions increment per experience |
+| Experience publish contract | No validation (empty experience, foreign scenes, broken editable parameters all publishable) | `src/lib/studio/publish.ts` validates before publish |
+| Artist / Campaign repositories | CRUD present. Campaign slug derived from title with **no uniqueness check** | Studio checks slug availability |
+| Public visibility | `campaign.listPublic` and artist/release pages list **draft** campaigns/releases; experience page does not check campaign status | Draft content hidden from public pages (becomes reachable once Studio creates drafts) |
+| Artist permission policy | Roles exist; no server checks for artist resources | `src/lib/studio/policy.ts` + server guards on every Studio page and API |
+
+### Timeline — implemented vs. needed
+
+| Capability | Today | Artist Studio MVP |
+|---|---|---|
+| Scene duration (`schema.duration`, runtime stops at end) | Implemented | **Required** — editable in Scene Editor |
+| Scene order + transition type/duration (`ExperienceScene`) | Implemented (fan experience navigates scenes) | **Required** — Experience sequence editor |
+| Play / pause / reset / seek in runtime | Implemented | **Required** — editor preview controls |
+| `timeline_trigger` input | Stub: `1` once playback started, else `0` | Exposed honestly as "after playback starts"; no time windows |
+| Keyframes / per-object tracks | Not implemented | Not required for MVP |
+| Cue points, per-object start/end times | Not implemented | Not required for MVP |
+| Sync to real audio track | Not implemented (mock audio only) | Out of scope (no real audio/storage) |
+| Timeline scrubbing UI | Not implemented | Nice-to-have (seek slider) |
+
+### Artist permission policy (MVP)
+
+| Action | artist_editor | artist_admin | platform_admin | fan / anonymous |
+|---|---|---|---|---|
+| View Studio, edit drafts (scenes, experiences, releases, campaigns), upload media, view analytics | own artist | own artist | any artist | — |
+| Edit artist identity, publish release/experience, activate/end campaign, delete media | — | own artist | any artist | — |
+
+Resources of another artist return **404** (no existence leak). Pages redirect anonymous users to `/login`; signed-in users without a Studio role get a 403 page.
+
 ## 2. Routes
 
 All under `src/app/studio/`, server-guarded (redirect to `/login?redirect=…` when no session; 403 page when role is not artist-level or the artist does not match `session.artistId`).

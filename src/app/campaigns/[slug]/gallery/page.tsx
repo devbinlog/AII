@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
+import { isPublicCampaign } from "@/lib/public-visibility";
 import { formatCount } from "@/lib/utils/format";
 import { ArtworkGrid } from "./_components/artwork-grid";
 
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const repo = getRepository();
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) return { title: "Gallery Not Found" };
+  if (!campaign || !isPublicCampaign(campaign)) return { title: "Gallery Not Found" };
   return {
     title: `${campaign.title} — Gallery`,
     description: `Fan artworks for the ${campaign.title} campaign.`,
@@ -34,7 +35,7 @@ export default async function CampaignGalleryPage({ params, searchParams }: Page
   const repo = getRepository();
 
   const campaign = await repo.campaign.findBySlug(slug);
-  if (!campaign) notFound();
+  if (!campaign || !isPublicCampaign(campaign)) notFound();
 
   const artworkResult = await repo.artwork.listByCampaign(campaign.id, {
     page,

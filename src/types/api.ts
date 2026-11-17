@@ -11,6 +11,7 @@ import type {
   MediaAsset,
   Release,
   Scene,
+  Track,
   User,
 } from "./domain";
 
@@ -114,6 +115,9 @@ export interface UpdateReleaseRequest {
   description?: string;
   releaseDate?: string;
   status?: Release["status"];
+  type?: Release["type"];
+  label?: string | null;
+  tracks?: Track[];
 }
 
 // ============================================================
@@ -153,6 +157,7 @@ export interface PublishExperienceRequest {
 
 export interface CreateCampaignRequest {
   artistId: string;
+  slug?: string; // defaults to a slug derived from the title
   experienceId: string;
   title: string;
   description: string;
@@ -164,6 +169,7 @@ export interface CreateCampaignRequest {
 export interface UpdateCampaignRequest {
   title?: string;
   description?: string;
+  experienceId?: string;
   status?: Campaign["status"];
   branding?: Partial<Campaign["branding"]>;
   participationPolicy?: Partial<Campaign["participationPolicy"]>;
@@ -200,6 +206,9 @@ export interface UploadAssetRequest {
   sizeBytes: number;
   altText?: string;
   tags?: string[];
+  uploadedBy?: string;
+  /** Mock only: small inline image preview kept in memory (no storage). */
+  previewDataUrl?: string;
 }
 
 export interface UploadAssetResponse {

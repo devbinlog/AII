@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
+import { isPublicRelease } from "@/lib/public-visibility";
 import { MOCK_IDS } from "@/lib/mock/fixtures";
 import { Badge } from "@/components/ui/badge";
 import { formatCount, formatDate, formatDuration } from "@/lib/utils/format";
@@ -258,11 +259,11 @@ export default async function HomePage() {
   const repo = getRepository();
   const [featuredArtist, releaseResult, campaignResult] = await Promise.all([
     repo.artist.findById(MOCK_IDS.ARTIST_FREEFALLERS),
-    repo.release.listByArtist(MOCK_IDS.ARTIST_FREEFALLERS, { page: 1, pageSize: 2 }),
+    repo.release.listByArtist(MOCK_IDS.ARTIST_FREEFALLERS, { page: 1, pageSize: 50 }),
     repo.campaign.listPublic({ page: 1, pageSize: 1, status: "active" }),
   ]);
 
-  const featuredRelease = releaseResult.releases[0] ?? null;
+  const featuredRelease = releaseResult.releases.find(isPublicRelease) ?? null;
   const activeCampaign = campaignResult.campaigns[0] ?? null;
 
   return (

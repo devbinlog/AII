@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
+import { isPublicRelease } from "@/lib/public-visibility";
 import { ExploreClient } from "./_components/explore-client";
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default async function ExplorePage() {
       repo.release.listByArtist(a.id, { page: 1, pageSize: 100 })
     )
   );
-  const allReleases = releaseResults.flatMap((r) => r.releases);
+  const allReleases = releaseResults.flatMap((r) => r.releases).filter(isPublicRelease);
 
   return (
     <main className="flex-1">

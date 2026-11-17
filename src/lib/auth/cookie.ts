@@ -3,6 +3,7 @@
 export const SESSION_COOKIE_NAME = "aii_session";
 
 export function getSessionTokenFromCookieHeader(cookieHeader: string): string | null {
-  const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+  // Anchor to a cookie boundary so e.g. "xaii_session=" does not match.
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
   return match?.[1] ?? null;
 }

@@ -7,7 +7,8 @@
  * ## Persistence Constraints
  *
  * - **Server restart**: All mutations (creates, updates, deletes) are lost on restart.
- *   The store is re-initialized from fixtures each time the module is loaded.
+ *   The store is created from fixtures once per process and kept on `globalThis`,
+ *   so every bundle (route handlers, server components) shares the same state.
  *
  * - **Concurrent requests**: The store is a single in-process object. Concurrent
  *   requests in the same Node.js instance share state (no locking). This is fine
@@ -43,6 +44,7 @@ import type {
   PaginationQuery,
   Release,
   Scene,
+  SceneSchema,
   Session,
   UploadAssetRequest,
   UploadAssetResponse,
@@ -77,9 +79,8 @@ import {
 // Helpers
 // ============================================================
 
-let _idCounter = 1000;
 function newId(prefix = "mock"): string {
-  return `${prefix}_${(++_idCounter).toString().padStart(6, "0")}`;
+  return `${prefix}_${(++store.idCounter).toString().padStart(6, "0")}`;
 }
 
 function now(): string {
@@ -100,20 +101,32 @@ function paginate<T>(items: T[], query: PaginationQuery): { items: T[]; total: n
 // In-memory stores (clone so mutations don't corrupt fixtures)
 // ============================================================
 
-const store = {
-  users: [...MOCK_USERS] as User[],
-  artists: [...MOCK_ARTISTS] as Artist[],
-  releases: [...MOCK_RELEASES] as Release[],
-  scenes: [...MOCK_SCENES] as Scene[],
-  experiences: [...MOCK_EXPERIENCES] as Experience[],
-  experienceVersions: [...MOCK_EXPERIENCE_VERSIONS] as ExperienceVersion[],
-  campaigns: [...MOCK_CAMPAIGNS] as Campaign[],
-  artworks: [...MOCK_ARTWORKS] as FanArtwork[],
-  assets: [...MOCK_ASSETS] as MediaAsset[],
-  sessions: new Map<string, Session>(),
-  auditLogs: [] as AuditLogEntry[],
-  likes: new Set<string>(), // `${userId}:${artworkId}`
-};
+function createStore() {
+  return {
+    idCounter: 1000,
+    users: [...MOCK_USERS] as User[],
+    artists: [...MOCK_ARTISTS] as Artist[],
+    releases: [...MOCK_RELEASES] as Release[],
+    scenes: [...MOCK_SCENES] as Scene[],
+    experiences: [...MOCK_EXPERIENCES] as Experience[],
+    experienceVersions: [...MOCK_EXPERIENCE_VERSIONS] as ExperienceVersion[],
+    campaigns: [...MOCK_CAMPAIGNS] as Campaign[],
+    artworks: [...MOCK_ARTWORKS] as FanArtwork[],
+    assets: [...MOCK_ASSETS] as MediaAsset[],
+    sessions: new Map<string, Session>(),
+    auditLogs: [] as AuditLogEntry[],
+    likes: new Set<string>(), // `${userId}:${artworkId}`
+  };
+}
+
+type MockStore = ReturnType<typeof createStore>;
+
+// Next.js may evaluate this module separately for route handlers and for
+// server-component pages (different bundles / layers). A module-level store
+// would then give each bundle its own sessions Map, so a session created via
+// /api/auth/signin is not visible to /me/artworks. Keep one store per process.
+const globalForMock = globalThis as typeof globalThis & { __aiiMockStore?: MockStore };
+const store: MockStore = (globalForMock.__aiiMockStore ??= createStore());
 
 // ============================================================
 // Mock Auth Repository
@@ -411,7 +424,7 @@ const mockExperience: ExperienceRepository = {
     const version = store.experienceVersions.find((v) => v.id === versionId) ?? null;
     if (!version) return null;
     // Populate sceneSchemas lazily from store
-    const sceneSchemas: Record<string, import("@/types/domain").SceneSchema> = {};
+    const sceneSchemas: Record<string, SceneSchema> = {};
     for (const es of version.snapshot.scenes) {
       const scene = store.scenes.find((s) => s.id === es.sceneId);
       if (scene) sceneSchemas[es.sceneId] = scene.schema;
@@ -461,7 +474,7 @@ const mockExperience: ExperienceRepository = {
       status: "published",
       currentVersionId: versionId,
     });
-    const sceneSchemas: Record<string, import("@/types/domain").SceneSchema> = {};
+    const sceneSchemas: Record<string, SceneSchema> = {};
     for (const es of exp.scenes) {
       const scene = store.scenes.find((s) => s.id === es.sceneId);
       if (scene) sceneSchemas[es.sceneId] = scene.schema;
@@ -654,7 +667,8 @@ const mockArtwork: ArtworkRepository = {
   async delete(id, requestorId) {
     const artwork = store.artworks.find((a) => a.id === id);
     if (!artwork) throw new Error("ARTWORK_NOT_FOUND");
-    if (artwork.creatorId !== null && artwork.creatorId !== requestorId) {
+    // Anonymous artworks (creatorId === null) have no logged-in owner until claimed.
+    if (artwork.creatorId === null || artwork.creatorId !== requestorId) {
       throw new Error("FORBIDDEN");
     }
     const idx = store.artworks.findIndex((a) => a.id === id);

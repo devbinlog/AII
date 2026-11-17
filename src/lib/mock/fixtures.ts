@@ -511,7 +511,7 @@ export const MOCK_EXPERIENCE_VERSIONS: ExperienceVersion[] = [
         { sceneId: MOCK_IDS.SCENE_WAVEFORM_HERO, order: 0, transitionType: "fade", transitionDuration: 800 },
         { sceneId: MOCK_IDS.SCENE_PARTICLE_BURST, order: 1, transitionType: "fade", transitionDuration: 600 },
       ],
-      sceneSchemas: {} as Record<string, import("@/types/domain").SceneSchema>, // populated lazily from MOCK_SCENES
+      sceneSchemas: {} as Record<string, SceneSchema>, // populated lazily from MOCK_SCENES
     },
     rendererVersion: "1.0.0",
     publishedAt: "2026-09-15T00:00:00Z",

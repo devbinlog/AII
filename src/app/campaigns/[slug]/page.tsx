@@ -6,8 +6,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getRepository } from "@/lib/repository";
-import { Badge } from "@/components/ui/badge";
-import { formatDate, formatCount } from "@/lib/utils/format";
+import { formatCount } from "@/lib/utils/format";
 import { CampaignHero } from "./_components/campaign-hero";
 import { CampaignMeta } from "./_components/campaign-meta";
 import { ShareButton } from "./_components/share-button";
@@ -28,8 +27,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 function ArtworkPreviewPlaceholder({ index, accentColor }: { index: number; accentColor: string }) {
-  const hues = [0, 210, 140, 45, 270, 320];
-  const hue = hues[index % hues.length];
   return (
     <div
       className="aspect-square relative overflow-hidden"

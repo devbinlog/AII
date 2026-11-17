@@ -7,6 +7,7 @@
 import type {
   Artist,
   ArtistListQuery,
+  AuditLogEntry,
   Campaign,
   CampaignAnalyticsSummary,
   CreateArtistRequest,
@@ -188,7 +189,7 @@ export interface AuditRepository {
     userAgent?: string;
   }): Promise<void>;
   list(query: PaginationQuery & { actorId?: string; action?: string; from?: string; to?: string }): Promise<{
-    entries: import("@/types").AuditLogEntry[];
+    entries: AuditLogEntry[];
     total: number;
   }>;
 }

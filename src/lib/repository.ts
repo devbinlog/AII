@@ -24,6 +24,7 @@ export function getRepository(): RepositoryRegistry {
     }
     // Dynamic import to ensure mock code is tree-shaken from prod builds
     // (This function is only called at runtime, so the static import below is fine for dev)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy load keeps mock code off non-mock paths
     const { mockRegistry } = require("./mock/adapters") as {
       mockRegistry: RepositoryRegistry;
     };

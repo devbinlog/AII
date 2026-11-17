@@ -33,6 +33,21 @@ export default defineConfig({
       name: "mobile-safari",
       use: { ...devices["iPhone 13"] },
     },
+    // System-installed browsers — used where Playwright's bundled browser
+    // download is unavailable (e.g. TLS-inspecting corporate networks).
+    // Run with: npx playwright test --project=edge --project=chrome-stable --project=mobile-edge
+    {
+      name: "edge",
+      use: { ...devices["Desktop Edge"], channel: "msedge" },
+    },
+    {
+      name: "chrome-stable",
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+    },
+    {
+      name: "mobile-edge",
+      use: { ...devices["Pixel 5"], channel: "msedge" },
+    },
   ],
   webServer: {
     command: "npm run dev",

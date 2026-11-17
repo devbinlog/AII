@@ -4,7 +4,7 @@
  * Mock mode: canvas taint from external images is handled gracefully.
  */
 
-import { SceneRuntime } from "@/lib/engine/runtime/scene-runtime";
+import { type SceneRuntime } from "@/lib/engine/runtime/scene-runtime";
 import { Canvas2DRenderer } from "@/lib/engine/renderer/canvas2d";
 import { simulateAudioFrame } from "@/lib/engine/audio/mock-frame";
 import type { SceneSchema } from "@/types/domain";

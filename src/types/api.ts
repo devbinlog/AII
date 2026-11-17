@@ -7,8 +7,6 @@
 import type {
   Artist,
   Campaign,
-  CampaignAnalyticsSummary,
-  Experience,
   FanArtwork,
   MediaAsset,
   Release,

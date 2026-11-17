@@ -112,7 +112,9 @@ function applyColorAdjustments(
   if (colorHue === undefined && colorBrightness === undefined) return hex;
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
-  let [h, s, l] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const [baseH, s, baseL] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  let h = baseH;
+  let l = baseL;
   if (colorHue !== undefined) h = (h + colorHue) % 360;
   if (colorBrightness !== undefined) l = Math.min(100, l * colorBrightness);
   return hslToRgbString(h, s, l);

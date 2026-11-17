@@ -72,7 +72,7 @@ function HeroBg({ primaryColor }: { primaryColor: string }) {
   );
 }
 
-export function CampaignHero({ campaign, artist, experience }: CampaignHeroProps) {
+export function CampaignHero({ campaign, artist: _artist, experience }: CampaignHeroProps) {
   const accentColor = campaign.branding.primaryColor;
   const isActive = campaign.status === "active";
   const isScheduled = campaign.status === "scheduled";

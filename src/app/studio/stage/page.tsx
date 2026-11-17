@@ -13,7 +13,12 @@ export const metadata: Metadata = { title: "Stage 3D" };
 export default async function StudioStagePage() {
   const access = await getStudioAccess("/studio/stage");
   if (access.status !== "ok") return <StudioForbidden />;
-  const saved = await getRepository().stage.get(access.artist.id);
+  const repo = getRepository();
+  const [saved, published, versions] = await Promise.all([
+    repo.stage.get(access.artist.id),
+    repo.stage.getPublished(access.artist.id),
+    repo.stage.listVersions(access.artist.id),
+  ]);
 
   return (
     <>
@@ -26,6 +31,12 @@ export default async function StudioStagePage() {
         initialLayout={saved ?? defaultStageLayout(access.artist.id)}
         savedAt={saved?.updatedAt ?? null}
         canEdit={access.can("content.edit")}
+        publish={{
+          artistSlug: access.artist.slug,
+          canPublish: access.can("stage.publish"),
+          publishedVersion: published ? { id: published.id, version: published.version, publishedAt: published.publishedAt } : null,
+          versionCount: versions.length,
+        }}
       />
     </>
   );

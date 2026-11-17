@@ -10,7 +10,7 @@ const s = (role: Session["role"], artistId: string | null = null): Session => ({
   isMock: true,
 });
 
-const ALL: StudioAction[] = ["studio.view", "content.edit", "identity.edit", "release.publish", "experience.publish", "campaign.publish", "media.delete"];
+const ALL: StudioAction[] = ["studio.view", "content.edit", "identity.edit", "release.publish", "experience.publish", "campaign.publish", "stage.publish", "media.delete"];
 
 describe("Studio policy", () => {
   it("fans, owners without platform_admin, and artist roles without an artist have no access", () => {

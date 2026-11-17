@@ -1,4 +1,4 @@
-import type { StageLayout } from "@/lib/stage/types";
+import type { StageLayout, StageLayoutVersion, StagePublication } from "@/lib/stage/types";
 /**
  * AII — Repository Interfaces
  * All data access must go through these contracts.
@@ -207,9 +207,17 @@ export interface AuditRepository {
 // ============================================================
 
 export interface StageLayoutRepository {
-  /** The artist's saved layout, or null if never saved. */
+  /** The artist's saved draft layout, or null if never saved. */
   get(artistId: string): Promise<StageLayout | null>;
   save(layout: StageLayout): Promise<StageLayout>;
+  /** Freeze the saved draft into a new immutable version and make it public. */
+  publish(artistId: string, publishedBy: string): Promise<StageLayoutVersion>;
+  /** Stop showing the stage to fans (versions are kept). */
+  unpublish(artistId: string): Promise<StagePublication>;
+  getPublication(artistId: string): Promise<StagePublication | null>;
+  /** The publicly visible version, or null when unpublished/never published. */
+  getPublished(artistId: string): Promise<StageLayoutVersion | null>;
+  listVersions(artistId: string): Promise<StageLayoutVersion[]>;
 }
 
 export interface RepositoryRegistry {

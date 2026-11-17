@@ -64,7 +64,7 @@ import type {
   SceneRepository,
   StageLayoutRepository,
 } from "../adapters/interfaces";
-import type { StageLayout } from "@/lib/stage/types";
+import { STAGE_SCHEMA_VERSION, type StageLayout, type StageLayoutVersion, type StagePublication } from "@/lib/stage/types";
 import {
   MOCK_ARTISTS,
   MOCK_ARTWORKS,
@@ -134,7 +134,9 @@ function createStore() {
     sessions: new Map<string, Session>(),
     auditLogs: [] as AuditLogEntry[],
     likes: new Set<string>(), // `${userId}:${artworkId}`
-    stageLayouts: new Map<string, StageLayout>(), // artistId → saved 3D stage layout
+    stageLayouts: new Map<string, StageLayout>(), // artistId → saved 3D stage draft
+    stageVersions: [] as StageLayoutVersion[], // immutable published snapshots
+    stagePublications: new Map<string, StagePublication>(), // artistId → publication state
   };
 }
 
@@ -884,6 +886,46 @@ const mockStage: StageLayoutRepository = {
     const saved = { ...structuredClone(layout), updatedAt: now() };
     store.stageLayouts.set(layout.artistId, saved);
     return structuredClone(saved);
+  },
+
+  async publish(artistId, publishedBy) {
+    const draft = store.stageLayouts.get(artistId);
+    if (!draft) throw new Error("STAGE_DRAFT_NOT_FOUND");
+    const count = store.stageVersions.filter((v) => v.artistId === artistId).length;
+    const version: StageLayoutVersion = structuredClone({
+      id: newId("stgv"),
+      artistId,
+      version: count + 1,
+      schemaVersion: STAGE_SCHEMA_VERSION,
+      items: draft.items,
+      publishedAt: now(),
+      publishedBy,
+    });
+    store.stageVersions.push(version);
+    store.stagePublications.set(artistId, { artistId, visibility: "public", publishedVersionId: version.id, updatedAt: now() });
+    return structuredClone(version);
+  },
+
+  async unpublish(artistId) {
+    const publication: StagePublication = { artistId, visibility: "unpublished", publishedVersionId: null, updatedAt: now() };
+    store.stagePublications.set(artistId, publication);
+    return structuredClone(publication);
+  },
+
+  async getPublication(artistId) {
+    const p = store.stagePublications.get(artistId);
+    return p ? structuredClone(p) : null;
+  },
+
+  async getPublished(artistId) {
+    const p = store.stagePublications.get(artistId);
+    if (!p || p.visibility !== "public" || !p.publishedVersionId) return null;
+    const v = store.stageVersions.find((x) => x.id === p.publishedVersionId && x.artistId === artistId);
+    return v ? structuredClone(v) : null;
+  },
+
+  async listVersions(artistId) {
+    return structuredClone(store.stageVersions.filter((v) => v.artistId === artistId).sort((a, b) => b.version - a.version));
   },
 };
 

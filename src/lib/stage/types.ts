@@ -41,3 +41,29 @@ export interface StageBounds {
   halfWidth: number; // X
   halfDepth: number; // Z
 }
+
+/** Current stage schema version, stored on every published snapshot. */
+export const STAGE_SCHEMA_VERSION = 1 as const;
+
+/** Immutable public snapshot of a saved draft layout. */
+export interface StageLayoutVersion {
+  id: string;
+  artistId: string;
+  /** 1, 2, 3 … per artist */
+  version: number;
+  schemaVersion: typeof STAGE_SCHEMA_VERSION;
+  items: StageItem[];
+  publishedAt: string;
+  publishedBy: string;
+}
+
+export type StageVisibility = "public" | "unpublished";
+
+/** Per-artist publication state. Fans can read only `publishedVersionId`. */
+export interface StagePublication {
+  artistId: string;
+  visibility: StageVisibility;
+  /** null when never published or unpublished */
+  publishedVersionId: string | null;
+  updatedAt: string;
+}

@@ -7,8 +7,19 @@ import { defaultStageLayout, parseStageLayout, validateAgainstReference } from "
 export async function GET(req: NextRequest) {
   const ctx = await requireStudio(req, "studio.view");
   if (isResponse(ctx)) return ctx;
-  const saved = await getRepository().stage.get(ctx.artistId);
-  return NextResponse.json({ ok: true, layout: saved ?? defaultStageLayout(ctx.artistId), saved: saved !== null });
+  const repo = getRepository();
+  const [saved, publication, versions] = await Promise.all([
+    repo.stage.get(ctx.artistId),
+    repo.stage.getPublication(ctx.artistId),
+    repo.stage.listVersions(ctx.artistId),
+  ]);
+  return NextResponse.json({
+    ok: true,
+    layout: saved ?? defaultStageLayout(ctx.artistId),
+    saved: saved !== null,
+    publication,
+    versions: versions.map((v) => ({ id: v.id, version: v.version, publishedAt: v.publishedAt })),
+  });
 }
 
 /**

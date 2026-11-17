@@ -28,8 +28,9 @@ export function getRepository(): RepositoryRegistry {
     const { mockRegistry } = require("./mock/adapters") as {
       mockRegistry: RepositoryRegistry;
     };
-    _registry = mockRegistry;
-    return _registry;
+    // Not cached: require() returns the current module, so hot reloads that add
+    // repository methods take effect without restarting the dev server.
+    return mockRegistry;
   }
 
   throw new Error(

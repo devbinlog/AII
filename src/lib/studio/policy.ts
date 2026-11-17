@@ -10,6 +10,7 @@ export type StudioAction =
   | "release.publish"
   | "experience.publish"
   | "campaign.publish"   // activate / end campaigns
+  | "stage.publish"      // publish / unpublish the public 3D stage
   | "media.delete";
 
 const EDITOR_ACTIONS: ReadonlySet<StudioAction> = new Set(["studio.view", "content.edit"]);

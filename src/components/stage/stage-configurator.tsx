@@ -52,7 +52,24 @@ function hasWebGL(): boolean {
   }
 }
 
-export function StageConfigurator({ initialLayout, savedAt, canEdit }: { initialLayout: StageLayout; savedAt: string | null; canEdit: boolean }) {
+export interface StagePublishInfo {
+  artistSlug: string;
+  canPublish: boolean;
+  publishedVersion: { id: string; version: number; publishedAt: string } | null;
+  versionCount: number;
+}
+
+export function StageConfigurator({
+  initialLayout,
+  savedAt,
+  canEdit,
+  publish,
+}: {
+  initialLayout: StageLayout;
+  savedAt: string | null;
+  canEdit: boolean;
+  publish: StagePublishInfo;
+}) {
   const [history, dispatch] = useReducer(historyReducer<StageLayout>, initialLayout, initHistory);
   const layout = history.present;
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initialLayout.items));
@@ -60,7 +77,9 @@ export function StageConfigurator({ initialLayout, savedAt, canEdit }: { initial
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<{ name: CameraView; nonce: number }>({ name: "perspective", nonce: 0 });
   const [camera, setCamera] = useState<{ position: Vec3; target: Vec3 } | null>(null);
-  const [busy, setBusy] = useState<"save" | "restore" | null>(null);
+  const [busy, setBusy] = useState<"save" | "restore" | "publish" | "unpublish" | null>(null);
+  const [published, setPublished] = useState(publish.publishedVersion);
+  const [versionCount, setVersionCount] = useState(publish.versionCount);
   const [result, setResult] = useState<{ ok: boolean; message: string; details?: string[] } | null>(null);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const reducedMotion = useReducedMotion();
@@ -140,6 +159,29 @@ export function StageConfigurator({ initialLayout, savedAt, canEdit }: { initial
     }
   }
 
+  async function publishStage() {
+    setBusy("publish");
+    setResult(null);
+    const res = await studioFetch<{ version: { id: string; version: number; publishedAt: string } }>("/api/studio/stage/publish", "POST");
+    setBusy(null);
+    if (res.ok) {
+      setPublished(res.data.version);
+      setVersionCount((n) => n + 1);
+      setResult({ ok: true, message: `Published stage v${res.data.version.version}. Fans now see this layout.` });
+    } else setResult({ ok: false, message: res.message, details: describeDetails(res.details) });
+  }
+
+  async function unpublishStage() {
+    if (!window.confirm("Unpublish the stage? Fans will no longer be able to open it.")) return;
+    setBusy("unpublish");
+    const res = await studioFetch("/api/studio/stage/publish", "DELETE");
+    setBusy(null);
+    if (res.ok) {
+      setPublished(null);
+      setResult({ ok: true, message: "Stage unpublished. The public page is now closed." });
+    } else setResult({ ok: false, message: res.message });
+  }
+
   async function restore() {
     setBusy("restore");
     const res = await studioFetch<{ layout: StageLayout; saved: boolean }>("/api/studio/stage");
@@ -182,6 +224,43 @@ export function StageConfigurator({ initialLayout, savedAt, canEdit }: { initial
       </div>
       <FormMessage result={result} />
 
+      <section aria-label="Public stage" className="flex flex-wrap items-center gap-3 border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm">
+        <span className={`inline-flex items-center px-2 py-0.5 border text-[11px] font-mono uppercase tracking-wider ${published ? "border-emerald-500/50 text-emerald-400" : "border-[var(--color-border-strong)] text-[var(--color-fg-muted)]"}`}>
+          {published ? "Public" : "Not public"}
+        </span>
+        <span className="text-[var(--color-fg-muted)]">
+          {published ? `Fans see v${published.version}` : versionCount > 0 ? "Unpublished — fans cannot open the stage" : "Never published"}
+        </span>
+        {published && (
+          <a href={`/artists/${publish.artistSlug}/stage`} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+            Open public stage
+          </a>
+        )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {publish.canPublish ? (
+            <>
+              <button
+                type="button"
+                className={btn}
+                onClick={() => void publishStage()}
+                disabled={busy !== null || dirty || !lastSaved}
+                title={dirty ? "Save the layout first" : !lastSaved ? "Save the layout first" : "Publish the saved layout"}
+              >
+                {busy === "publish" ? "Publishing…" : published ? "Publish new version" : "Publish stage"}
+              </button>
+              {published && (
+                <button type="button" className={btn} onClick={() => void unpublishStage()} disabled={busy !== null}>
+                  Unpublish
+                </button>
+              )}
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-fg-muted)]">An artist admin publishes the stage.</span>
+          )}
+        </div>
+        {publish.canPublish && (dirty || !lastSaved) && <p className="w-full text-xs text-[var(--color-fg-muted)]">Only the saved layout can be published. Save your changes first.</p>}
+      </section>
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="relative w-full overflow-hidden border border-[var(--color-border)] bg-black aspect-[4/3] md:aspect-[16/9]" data-testid="stage-viewport">
           {webgl === false ? (
@@ -190,7 +269,8 @@ export function StageConfigurator({ initialLayout, savedAt, canEdit }: { initial
             </div>
           ) : webgl ? (
             <StageCanvas
-              layout={layout}
+              mode="edit"
+              items={layout.items}
               selectedId={selectedId}
               view={view}
               reducedMotion={reducedMotion}

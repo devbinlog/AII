@@ -219,3 +219,42 @@ test.describe("3D Stage Configurator — touch", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
+
+test.describe("3D Stage — label collisions", () => {
+  const boxes = (page: Page) =>
+    page.locator("[data-label-id]").evaluateAll((els) =>
+      els
+        .filter((e) => (e as HTMLElement).style.visibility === "visible")
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          return { id: (e as HTMLElement).dataset.labelId!, l: r.left, r: r.right, t: r.top, b: r.bottom };
+        })
+    );
+  const noOverlap = (bs: { l: number; r: number; t: number; b: number }[]) =>
+    bs.every((a, i) => bs.every((b, j) => i === j || a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t));
+
+  test("front view: vocal in front of the drummer — every member tag shows, none overlap; selection wins", async ({ page }) => {
+    await openStage(page);
+    await page.getByRole("button", { name: "Default layout" }).click();
+    await page.getByRole("button", { name: "Front", exact: true }).click();
+    await expect.poll(async () => (await readState(page)).camera!.position[2], { timeout: 10000 }).toBeGreaterThan(13.9);
+    const before = (await readState(page)).items;
+
+    await expect.poll(async () => (await boxes(page)).map((b) => b.id).sort(), { timeout: 5000 }).toEqual(
+      ["member-bass", "member-drums", "member-guitar", "member-keys", "member-vocal"]
+    );
+    expect(noOverlap(await boxes(page))).toBe(true);
+
+    // Selecting an object adds its tag and it is never the one pushed aside or hidden
+    await page.getByRole("button", { name: /^Drum kit/ }).click();
+    await expect.poll(async () => page.locator('[data-label-id="drums"]').getAttribute("data-label-state"), { timeout: 5000 }).toBe("anchor");
+    expect(noOverlap(await boxes(page))).toBe(true);
+
+    // Labels moved, objects did not
+    expect((await readState(page)).items).toEqual(before);
+
+    // Label toggle still hides member tags
+    await page.getByRole("button", { name: "Labels" }).click();
+    await expect.poll(async () => (await boxes(page)).map((b) => b.id)).toEqual(["drums"]);
+  });
+});

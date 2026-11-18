@@ -13,7 +13,9 @@ import {
   isMovable,
   performerRole,
   ROLE_STYLES,
+  placeLabels,
   type CameraView,
+  type LabelInput,
   type StageItem,
   type Vec3,
 } from "@/lib/stage";
@@ -188,20 +190,46 @@ type LabelRefs = MutableRefObject<Map<string, HTMLSpanElement>>;
 
 /**
  * Projects label anchors to screen space every frame and positions DOM tags in an
- * overlay outside the canvas. Avoids per-label React roots (drei Html) entirely.
+ * overlay outside the canvas (no per-label React roots). Overlapping tags are
+ * resolved in screen space by `placeLabels` — selected first, then nearest — so
+ * stage objects themselves never move. DOM is only written when a tag changes.
  */
-function LabelProjector({ items, labelRefs }: { items: StageItem[]; labelRefs: LabelRefs }) {
+function LabelProjector({ items, selectedId, labelRefs }: { items: StageItem[]; selectedId: string | null; labelRefs: LabelRefs }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const v = useMemo(() => new Vector3(), []);
+  const sizes = useRef(new Map<string, { w: number; h: number }>());
   useFrame(() => {
+    const inputs: LabelInput[] = [];
     for (const item of items) {
       const el = labelRefs.current.get(item.id);
       if (!el) continue;
       v.set(item.position[0], item.kind === "performer" ? 2.15 : 1.4, item.position[2]).project(camera);
-      const visible = v.z < 1 && Math.abs(v.x) <= 1.1 && Math.abs(v.y) <= 1.1;
-      el.style.visibility = visible ? "visible" : "hidden";
-      el.style.transform = `translate(-50%, -50%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
+      if (!(v.z < 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05)) continue;
+      let m = sizes.current.get(item.id);
+      if (!m || m.w === 0) {
+        m = { w: el.offsetWidth, h: el.offsetHeight };
+        sizes.current.set(item.id, m);
+      }
+      inputs.push({ id: item.id, x: ((v.x + 1) / 2) * size.width, y: ((1 - v.y) / 2) * size.height, depth: v.z, width: m.w, height: m.h, selected: item.id === selectedId });
+    }
+    const placed = new Map(placeLabels(inputs, size).map((p) => [p.id, p]));
+    for (const item of items) {
+      const el = labelRefs.current.get(item.id);
+      if (!el) continue;
+      const p = placed.get(item.id);
+      const state = p ? p.state : "offscreen";
+      const key = p && state !== "hidden" ? `${state}|${Math.round(p.x)}|${Math.round(p.y)}` : state;
+      // Key lives on the element, so a remounted tag is always re-positioned.
+      if (el.dataset.labelKey === key) continue;
+      el.dataset.labelKey = key;
+      el.dataset.labelState = state;
+      if (!p || state === "hidden") {
+        el.style.visibility = "hidden";
+        continue;
+      }
+      el.style.visibility = "visible";
+      el.style.transform = `translate(-50%, -50%) translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
     }
   });
   return null;
@@ -381,18 +409,19 @@ export function StageCanvas(props: StageCanvasProps) {
         screenSpacePanning={false}
       />
       <CameraRig view={view} reducedMotion={reducedMotion} {...(onCameraChange ? { onCameraChange } : {})} />
-      <LabelProjector items={labelled} labelRefs={labelRefs} />
+      <LabelProjector items={labelled} selectedId={selectedId} labelRefs={labelRefs} />
     </Canvas>
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       {labelled.map((item) => (
         <span
           key={item.id}
+          data-label-id={item.id}
           ref={(el) => {
             if (el) labelRefs.current.set(item.id, el);
             else labelRefs.current.delete(item.id);
           }}
-          className="absolute left-0 top-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#f2efe8]"
-          style={{ background: "rgba(8,19,31,0.78)", border: `1px solid ${labelColor(item)}`, visibility: "hidden" }}
+          className="absolute left-0 top-0 whitespace-nowrap px-1.5 py-0.5 text-[11px] font-mono uppercase tracking-wider text-[#f2efe8]"
+          style={{ background: "rgba(8,19,31,0.86)", border: `1px solid ${labelColor(item)}`, visibility: "hidden", zIndex: item.id === selectedId ? 1 : 0 }}
         >
           {item.label}
           {!isMovable(item) ? " · locked" : ""}

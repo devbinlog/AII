@@ -18,3 +18,4 @@ export * from "./history";
 export * from "./presets";
 export * from "./serialize";
 export * from "./characters";
+export * from "./labels";

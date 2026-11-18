@@ -90,3 +90,40 @@ test.describe("Navbar reflects the session", () => {
     await other.close();
   });
 });
+
+test.describe("Mobile menu robustness", () => {
+  test.beforeEach(({}, info) => {
+    test.skip(!isMobile(info.project.name), "mobile menu");
+  });
+
+  test("a tap before hydration still opens the menu (slow JS)", async ({ page }) => {
+    // Hold every JS chunk for 3 s so the tap lands on server-rendered HTML.
+    await page.route(/\/_next\/static\/.*\.js/, async (r) => {
+      await new Promise((ok) => setTimeout(ok, 3000));
+      await r.continue();
+    });
+    await page.goto("/explore", { waitUntil: "commit" });
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  });
+
+  test("menu is readable, reports expanded state, and closes on Escape and on navigation", async ({ page }) => {
+    await page.goto("/");
+    const toggle = page.getByRole("button", { name: "Open menu" });
+    const menu = await openMobileMenu(page);
+    await expect(menu).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const [fg, bg] = await menu.getByRole("link", { name: "Home" }).evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el.closest("#mobile-menu")!).backgroundColor]);
+    expect(fg).not.toBe(bg);
+    expect(bg).toBe("rgb(242, 239, 232)"); // Paper — the theme the menu's text tokens are made for
+
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await openMobileMenu(page);
+    await menu.getByRole("link", { name: "Explore" }).click();
+    await expect(page).toHaveURL("/explore");
+    await expect(menu).toBeHidden();
+  });
+});

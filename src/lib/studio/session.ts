@@ -26,3 +26,13 @@ export async function getStudioAccess(returnTo: string, requestedArtistId?: stri
 
   return { status: "ok", session, artist, can: (action) => canPerform(session, action) };
 }
+
+/**
+ * Display-only: should a public page offer an "Edit in Studio" link for this artist?
+ * Never redirects. Studio pages and APIs still enforce access on their own.
+ */
+export async function canEditArtistInStudio(artistId: string): Promise<boolean> {
+  const session = await getSession();
+  if (!hasStudioAccess(session)) return false;
+  return resolveStudioArtistId(session, artistId) === artistId && canPerform(session, "content.edit");
+}

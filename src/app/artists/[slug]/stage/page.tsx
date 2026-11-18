@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
 import { StageViewer } from "@/components/stage/stage-viewer";
 import { getArtistTheme } from "@/lib/theme/artist-theme";
+import { canEditArtistInStudio } from "@/lib/studio/session";
+import { formatDate } from "@/lib/utils/format";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -32,6 +34,7 @@ export default async function PublicStagePage({ params }: PageProps) {
   const { artist, stage } = data;
   // Artist identity only tints the header rule; the stage itself uses the AII Stage palette.
   const theme = getArtistTheme(artist);
+  const canEdit = await canEditArtistInStudio(artist.id);
 
   return (
     <main className="studio stage-theme flex-1 bg-[var(--color-bg)] text-[var(--color-fg)]">
@@ -49,9 +52,19 @@ export default async function PublicStagePage({ params }: PageProps) {
               {artist.name}
             </h1>
           </div>
-          <p className="text-xs font-mono text-[var(--color-fg-muted)]">
-            Stage v{stage.version} · {new Date(stage.publishedAt).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric" })}
-          </p>
+          <div className="flex flex-col gap-3 md:items-end">
+            <p className="text-xs font-mono text-[var(--color-fg-muted)]">
+              Stage v{stage.version} · {formatDate(stage.publishedAt)}
+            </p>
+            {canEdit && (
+              <Link
+                href="/studio/stage"
+                className="inline-flex h-9 items-center self-start px-3 text-sm font-semibold border border-[var(--stage-cyan)] text-[var(--stage-cyan)] hover:bg-[var(--stage-cyan)] hover:text-[var(--stage-void)] transition-colors md:self-end"
+              >
+                Edit in Studio →
+              </Link>
+            )}
+          </div>
         </header>
         <StageViewer items={stage.items} artistName={artist.name} />
       </div>

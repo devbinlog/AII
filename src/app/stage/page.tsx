@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { formatDate } from "@/lib/utils/format";
+import { canEditArtistInStudio } from "@/lib/studio/session";
 
 export const metadata: Metadata = {
   title: "Live Stages",
@@ -17,6 +18,8 @@ export default async function StageIndexPage() {
   const stages = (
     await Promise.all(artists.map(async (artist) => ({ artist, stage: await repo.stage.getPublished(artist.id) })))
   ).flatMap(({ artist, stage }) => (stage ? [{ artist, stage }] : []));
+  // Artist teams get a direct way into the editor (display only; Studio enforces access).
+  const editable = (await Promise.all(artists.map(async (a) => ((await canEditArtistInStudio(a.id)) ? a : null)))).filter((a) => a !== null);
 
   return (
     <main className="studio stage-theme flex-1 bg-[var(--stage-void)] text-[var(--aii-paper)]">
@@ -26,6 +29,15 @@ export default async function StageIndexPage() {
         <p className="mt-4 max-w-md text-sm text-[var(--aii-stone)]">
           Published 3D stages from AII artists. Orbit, zoom and inspect each band&apos;s setup.
         </p>
+
+        {editable.length > 0 && (
+          <div className="mt-8 flex flex-wrap items-center gap-3 border border-[#26496c] bg-[var(--stage-void-2)] px-4 py-3 text-sm">
+            <span className="text-[var(--aii-stone)]">You manage {editable.map((a) => a.name).join(", ")}.</span>
+            <Link href="/studio/stage" className="font-semibold text-[var(--stage-cyan)] hover:underline">
+              Edit your stage in Studio →
+            </Link>
+          </div>
+        )}
 
         {stages.length === 0 ? (
           <div className="mt-12 border border-dashed border-[#26496c] p-10 text-center" role="status">

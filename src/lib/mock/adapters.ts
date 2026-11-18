@@ -150,6 +150,17 @@ const globalForMock = globalThis as typeof globalThis & { __aiiMockStore?: MockS
 // Keep existing data across hot reloads, but add stores introduced since the process started.
 const store: MockStore = (globalForMock.__aiiMockStore = { ...createStore(), ...globalForMock.__aiiMockStore });
 
+/**
+ * Test fixture reset (dev/E2E only): restore every collection to the fixtures so
+ * runs do not accumulate data. Sessions are kept by default, so anyone signed in
+ * to the dev server stays signed in.
+ */
+export function resetMockData(options: { keepSessions?: boolean } = {}): void {
+  const sessions = store.sessions;
+  Object.assign(store, createStore());
+  if (options.keepSessions !== false) store.sessions = sessions;
+}
+
 // ============================================================
 // Mock Auth Repository
 // ============================================================

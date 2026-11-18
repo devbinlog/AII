@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./src/test/e2e",
+  // Reset the mock store to fixtures before each run (E2E_RESET_MOCK=0 to skip).
+  globalSetup: "./src/test/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 2 : 0,

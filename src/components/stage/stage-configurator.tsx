@@ -3,8 +3,11 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
+  CURRENT_BACKLINE,
   GRID_STEP,
+  backlineOf,
   defaultStageLayout,
+  upgradeBackline,
   historyReducer,
   initHistory,
   isMovable,
@@ -262,6 +265,18 @@ export function StageConfigurator({
           Redo
         </button>
       </div>
+
+      {canEdit && backlineOf(layout) < CURRENT_BACKLINE && (
+        <div role="note" className="flex flex-wrap items-center gap-3 border border-[var(--stage-amber)]/50 bg-[var(--color-bg-secondary)] px-3 py-2 text-sm">
+          <span className="text-[var(--color-fg)]">
+            This draft uses the previous backline (amps on the old sides). Your members and instruments stay where they are.
+          </span>
+          <button type="button" className={btn} onClick={() => step((l) => upgradeBackline(l))}>
+            Update backline
+          </button>
+          <span className="text-xs text-[var(--color-fg-muted)]">Nothing changes until you save.</span>
+        </div>
+      )}
 
       {/* Status bar: draft save state + public state */}
       <div className="flex flex-wrap items-center gap-2 border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm" aria-label="Layout status">

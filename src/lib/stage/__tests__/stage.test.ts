@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   CAMERA_VIEWS,
+  CURRENT_BACKLINE,
+  backlineOf,
+  referenceFor,
+  upgradeBackline,
   STAGE_BOUNDS,
   STAGE_CENTER,
   clampTarget,
@@ -11,7 +15,6 @@ import {
   isInsideStage,
   isMovable,
   backlineOverlap,
-  migrateStoredLayout,
   moveItem,
   serializeStageLayout,
   normalizeStageLayout,
@@ -94,33 +97,52 @@ describe("default layout — audience-facing sides", () => {
   });
 });
 
-describe("migrateStoredLayout (stored drafts only)", () => {
+describe("backline versions (compatibility policy)", () => {
   const P = (x: number, z: number) => [x, 0, z] as [number, number, number];
-  const oldBackline = () => ({
-    ...layout,
-    items: layout.items.map((i) =>
-      i.id === "amp-guitar" ? { ...i, position: P(-3.5, -2.75) }
-      : i.id === "amp-bass" ? { ...i, position: P(3.5, -2.75) }
-      : i.id === "amp-keys" ? { ...i, position: P(-5, -2.75) }
-      : i.id === "member-vocal" ? { ...i, position: P(1.25, 2) }
-      : i
-    ),
+  /** A draft saved before backlines were versioned: no field, original amp positions, a moved vocal. */
+  const legacyDraft = () => {
+    const l = defaultStageLayout("art_001", "2026-11-01T00:00:00Z", 1);
+    const { backlineVersion: _drop, ...unversioned } = l;
+    void _drop;
+    return { ...unversioned, items: l.items.map((i) => (i.id === "member-vocal" ? { ...i, position: P(1.25, 2) } : i)) };
+  };
+
+  it("new layouts use the current backline", () => {
+    expect(layout.backlineVersion).toBe(CURRENT_BACKLINE);
+    expect(backlineOf(layout)).toBe(CURRENT_BACKLINE);
   });
 
-  it("a draft with the old backline fails validation as stored, passes once migrated", () => {
-    expect(validateAgainstReference(oldBackline(), layout).join()).toMatch(/locked item cannot move/);
-    expect(validateAgainstReference(migrateStoredLayout(oldBackline(), layout), layout)).toEqual([]);
+  it("an unversioned draft resolves by where its amps are", () => {
+    expect(backlineOf(legacyDraft())).toBe(1);
+    const { backlineVersion: _v, ...unversionedCurrent } = layout;
+    void _v;
+    expect(backlineOf(unversionedCurrent)).toBe(2);
   });
 
-  it("moves only locked gear; the artist's members and instruments keep their coordinates", () => {
-    const migrated = migrateStoredLayout(oldBackline(), layout);
-    expect(find(migrated, "amp-bass").position).toEqual([-3.5, 0, -2.75]);
-    expect(find(migrated, "member-vocal").position).toEqual([1.25, 0, 2]);
-    for (const i of migrated.items.filter((x) => isMovable(x))) expect(i).toEqual(find(oldBackline(), i.id));
+  it("a legacy draft validates against its own backline, unchanged", () => {
+    const d = legacyDraft();
+    expect(validateAgainstReference(normalizeStageLayout(d, referenceFor(d, "art_001")), referenceFor(d, "art_001"))).toEqual([]);
+    expect(normalizeStageLayout(d, referenceFor(d, "art_001"))).toBe(d); // nothing to add, same object
   });
 
-  it("returns the same object when nothing needs migrating", () => {
-    expect(migrateStoredLayout(layout, layout)).toBe(layout);
+  it("parse/serialize round-trip is lossless and does not invent a backlineVersion", () => {
+    const d = legacyDraft();
+    const back = parseStageLayout(JSON.parse(serializeStageLayout(d)));
+    expect(back.ok && back.layout).toEqual(d);
+    expect(back.ok && "backlineVersion" in back.layout).toBe(false);
+  });
+
+  it("upgradeBackline moves only locked gear and marks the current version", () => {
+    const up = upgradeBackline(legacyDraft());
+    expect(up.backlineVersion).toBe(CURRENT_BACKLINE);
+    expect(find(up, "amp-bass").position).toEqual([-3.5, 0, -2.75]);
+    for (const i of up.items.filter((x) => isMovable(x))) expect(i).toEqual(find(legacyDraft(), i.id));
+    expect(validateAgainstReference(up, referenceFor(up, "art_001"))).toEqual([]);
+  });
+
+  it("a current-backline layout with an amp on the old side is invalid", () => {
+    const bad = { ...layout, items: layout.items.map((i) => (i.id === "amp-bass" ? { ...i, position: P(3.5, -2.75) } : i)) };
+    expect(validateAgainstReference(bad, referenceFor(bad, "art_001")).join()).toMatch(/locked item cannot move/);
   });
 });
 

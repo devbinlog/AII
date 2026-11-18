@@ -6,7 +6,7 @@ import { getStudioAccess } from "@/lib/studio/session";
 import { StudioForbidden } from "@/components/studio/studio-forbidden";
 import { StudioPageHeader } from "@/components/studio/ui";
 import { StageConfigurator } from "@/components/stage/stage-configurator";
-import { defaultStageLayout, migrateStoredLayout } from "@/lib/stage";
+import { defaultStageLayout, normalizeStageLayout, referenceFor } from "@/lib/stage";
 
 export const metadata: Metadata = { title: "Stage 3D" };
 
@@ -28,7 +28,7 @@ export default async function StudioStagePage() {
         description="Arrange hologram members and instruments on stage. Amplifiers and drums are fixed to the backline."
       />
       <StageConfigurator
-        initialLayout={saved ? migrateStoredLayout(saved, defaultStageLayout(access.artist.id)) : defaultStageLayout(access.artist.id)}
+        initialLayout={saved ? normalizeStageLayout(saved, referenceFor(saved, access.artist.id)) : defaultStageLayout(access.artist.id)}
         savedAt={saved?.updatedAt ?? null}
         canEdit={access.can("content.edit")}
         publish={{

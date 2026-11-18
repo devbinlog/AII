@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, requireStudio } from "@/lib/studio/api";
-import { defaultStageLayout, migrateStoredLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
+import { normalizeStageLayout, parseStageLayout, referenceFor, validateAgainstReference } from "@/lib/stage";
 
 /**
  * Publish the saved draft as a new immutable version (artist admins only).
@@ -16,9 +16,10 @@ export async function POST(req: NextRequest) {
   if (!draft) return apiError("UNPROCESSABLE", 422, "Save the stage layout before publishing");
   const parsed = parseStageLayout(draft);
   if (!parsed.ok) return apiError("INVALID_LAYOUT", 422, parsed.error);
-  const reference = defaultStageLayout(ctx.artistId);
-  // Stored drafts pick up new default items and the current locked backline (and are re-stored) first.
-  const normalized = migrateStoredLayout(parsed.layout, reference);
+  // Validated against the draft's own backline. Only additive normalization (missing
+  // default items) is stored back; existing coordinates are never changed here.
+  const reference = referenceFor(parsed.layout, ctx.artistId);
+  const normalized = normalizeStageLayout(parsed.layout, reference);
   const problems = validateAgainstReference(normalized, reference);
   if (problems.length > 0) return apiError("INVALID_LAYOUT", 422, problems[0], problems);
   if (normalized !== parsed.layout) await repo.stage.save(normalized);

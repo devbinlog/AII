@@ -29,11 +29,24 @@ export interface CameraState {
   target: Vec3;
 }
 
+/**
+ * Platform backline revision (positions of the locked amps/drums).
+ * 1 = original (guitar & keys amps audience-left, bass amp right)
+ * 2 = 2026-11-18 (each amp behind its player: bass left, guitar & keys right)
+ */
+export type BacklineVersion = 1 | 2;
+export const CURRENT_BACKLINE: BacklineVersion = 2;
+
 export interface StageLayout {
   version: 1;
   artistId: string;
   items: StageItem[];
   updatedAt: string;
+  /**
+   * Which platform backline this layout was arranged against. Absent on layouts
+   * saved before backlines were versioned; see `backlineOf` for how those resolve.
+   */
+  backlineVersion?: BacklineVersion;
 }
 
 export interface StageBounds {

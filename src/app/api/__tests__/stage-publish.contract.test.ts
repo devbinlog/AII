@@ -12,7 +12,7 @@ import { getRepository } from "@/lib/repository";
 import * as studioStage from "@/app/api/studio/stage/route";
 import * as publishRoute from "@/app/api/studio/stage/publish/route";
 import { GET as publicStage } from "@/app/api/artists/[slug]/stage/route";
-import { defaultStageLayout, moveItem, type StageItem } from "@/lib/stage";
+import { CURRENT_BACKLINE, defaultStageLayout, moveItem, upgradeBackline, type StageItem, type StageLayout } from "@/lib/stage";
 
 const BASE = "http://localhost:3000";
 const req = (path: string, method: string, token?: string, body?: unknown) => {
@@ -157,26 +157,66 @@ describe("Default layout change (2026-11-18) leaves stored layouts alone", () =>
   });
 });
 
-describe("Amp move (2026-11-18): drafts stored with the old backline", () => {
+describe("Backline compatibility: stored drafts are never changed without the artist", () => {
   const P = (x: number, z: number) => [x, 0, z] as [number, number, number];
-  const storedOld = () => {
-    const l = defaultStageLayout("art_001");
-    const old: Record<string, [number, number, number]> = { "amp-guitar": P(-3.5, -2.75), "amp-bass": P(3.5, -2.75), "amp-keys": P(-5, -2.75), "member-vocal": P(0.75, 2) };
-    return { ...l, items: l.items.map((i) => (old[i.id] ? { ...i, position: old[i.id]! } : i)) };
+  const getDraft = async () =>
+    (await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: StageLayout; backline: { version: number; current: number } };
+  /** Stored before versioning: no backlineVersion, original amps, artist-moved vocal. */
+  const legacyStored = (): StageLayout => {
+    const l = defaultStageLayout("art_001", "2026-11-01T00:00:00Z", 1);
+    const { backlineVersion: _v, ...rest } = l;
+    void _v;
+    return { ...rest, items: l.items.map((i) => (i.id === "member-vocal" ? { ...i, position: P(0.75, 2) } : i)) };
   };
 
-  it("load returns the new backline and the artist's own member positions; publish succeeds", async () => {
-    await getRepository().stage.save(storedOld()); // as if saved before the change (bypasses PUT validation)
-    const draft = ((await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: { items: StageItem[] } }).layout.items;
-    expect(pos(draft, "amp-bass")).toEqual([-3.5, 0, -2.75]);
-    expect(pos(draft, "amp-guitar")).toEqual([3.5, 0, -2.75]);
-    expect(pos(draft, "member-vocal")).toEqual([0.75, 0, 2]);
-    expect((await publish(admin)).status).toBe(201);
-    expect(pos((await publicItems()).items, "member-vocal")).toEqual([0.75, 0, 2]);
+  it("1. a reader with no draft gets the current backline", async () => {
+    const other = (await (await studioStage.GET(req("/api/studio/stage", "GET", otherAdmin))).json()) as { layout: StageLayout; backline: { version: number } };
+    expect(other.backline.version).toBe(CURRENT_BACKLINE);
+    expect(pos(other.layout.items, "amp-bass")).toEqual([-3.5, 0, -2.75]);
   });
 
-  it("an incoming save that moves an amp is still rejected, not silently fixed", async () => {
-    const tampered = storedOld();
-    expect((await save(admin, tampered)).status).toBe(422);
+  it("5. reading a legacy draft returns it unchanged and writes nothing", async () => {
+    const stored = await getRepository().stage.save(legacyStored());
+    const d = await getDraft();
+    expect(d.layout.items).toEqual(stored.items);
+    expect(d.backline).toEqual({ version: 1, current: CURRENT_BACKLINE });
+    expect(await getRepository().stage.get("art_001")).toEqual(stored); // byte-identical, same updatedAt
+  });
+
+  it("6. load → save round-trip of a legacy draft is lossless", async () => {
+    const before = await getRepository().stage.get("art_001");
+    const loaded = (await getDraft()).layout;
+    expect((await save(admin, loaded)).status).toBe(200);
+    const after = await getRepository().stage.get("art_001");
+    expect(after!.items).toEqual(before!.items);
+    expect("backlineVersion" in after!).toBe(false);
+  });
+
+  it("3. publishing a legacy draft snapshots exactly its coordinates; later changes never touch it", async () => {
+    expect((await publish(admin)).status).toBe(201);
+    const pub = await publicItems();
+    expect(pos(pub.items, "amp-bass")).toEqual([3.5, 0, -2.75]); // original backline, as the artist arranged it
+    expect(pos(pub.items, "member-vocal")).toEqual([0.75, 0, 2]);
+    const snapshot = structuredClone(pub.items);
+    // 4. explicit upgrade: only locked gear moves, only when saved
+    expect((await save(admin, upgradeBackline((await getDraft()).layout))).status).toBe(200);
+    const up = await getDraft();
+    expect(up.backline.version).toBe(CURRENT_BACKLINE);
+    expect(pos(up.layout.items, "amp-bass")).toEqual([-3.5, 0, -2.75]);
+    expect(pos(up.layout.items, "member-vocal")).toEqual([0.75, 0, 2]);
+    expect((await publicItems()).items).toEqual(snapshot); // published version immutable
+  });
+
+  it("4. after upgrading, saving the old backline again is rejected (no silent downgrade)", async () => {
+    const res = await save(admin, legacyStored());
+    expect(res.status).toBe(422);
+  });
+
+  it("tampering is still rejected on either backline", async () => {
+    const cur = (await getDraft()).layout;
+    const moved = { ...cur, items: cur.items.map((i) => (i.id === "amp-keys" ? { ...i, position: P(0, 0) } : i)) };
+    expect((await save(admin, moved)).status).toBe(422);
+    const claimOld = { ...cur, backlineVersion: 1 as const };
+    expect((await save(admin, claimOld)).status).toBe(422);
   });
 });

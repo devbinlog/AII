@@ -100,29 +100,6 @@ export function normalizeStageLayout(layout: StageLayout, reference: StageLayout
 }
 
 /**
- * For layouts READ FROM STORAGE (never for incoming saves): add missing default
- * items, and put platform-locked backline (amps, drum kit) where the current
- * default has it. Artists can never move that gear, so a draft saved before the
- * backline changed would otherwise fail validation on its next save or publish.
- * Members and movable instruments keep exactly the coordinates the artist saved.
- * Published versions are immutable snapshots and are never migrated.
- */
-export function migrateStoredLayout(layout: StageLayout, reference: StageLayout): StageLayout {
-  const normalized = normalizeStageLayout(layout, reference);
-  const refById = new Map(reference.items.map((i) => [i.id, i]));
-  let changed = false;
-  const items = normalized.items.map((item) => {
-    const ref = refById.get(item.id);
-    if (!ref || !(ref.locked || ALWAYS_LOCKED.has(ref.kind))) return item;
-    const same = item.locked === ref.locked && item.rotationY === ref.rotationY && item.position.every((v, i) => v === ref.position[i]);
-    if (same) return item;
-    changed = true;
-    return { ...item, position: [...ref.position] as Vec3, rotationY: ref.rotationY, locked: ref.locked };
-  });
-  return changed ? { ...normalized, items } : normalized;
-}
-
-/**
  * Server-side guard: locked items must stay exactly where the reference layout
  * has them, every movable item must be inside the stage, and the item set
  * cannot change. Returns human-readable problems (empty = valid).

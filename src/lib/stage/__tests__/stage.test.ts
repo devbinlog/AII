@@ -11,6 +11,7 @@ import {
   isInsideStage,
   isMovable,
   backlineOverlap,
+  migrateStoredLayout,
   moveItem,
   serializeStageLayout,
   normalizeStageLayout,
@@ -63,11 +64,17 @@ describe("default layout — audience-facing sides", () => {
     expect(find(layout, "mic-vocal").position[0]).toBe(0);
   });
 
-  it("keeps the fixed backline exactly where it was", () => {
+  it("puts each amp on its player's side; drums stay center", () => {
     expect(find(layout, "drums").position).toEqual([0, 0, -2.5]);
-    expect(find(layout, "amp-guitar").position).toEqual([-3.5, 0, -2.75]);
-    expect(find(layout, "amp-bass").position).toEqual([3.5, 0, -2.75]);
-    expect(find(layout, "amp-keys").position).toEqual([-5, 0, -2.75]);
+    expect(side("amp-bass", "front")).toBe("left");
+    expect(side("amp-guitar", "front")).toBe("right");
+    expect(side("amp-keys", "front")).toBe("right");
+    const dist = (a: string, b: string) =>
+      Math.hypot(find(layout, a).position[0] - find(layout, b).position[0], find(layout, a).position[2] - find(layout, b).position[2]);
+    const amps = ["amp-bass", "amp-guitar", "amp-keys"];
+    for (const [amp, player] of [["amp-bass", "member-bass"], ["amp-guitar", "member-guitar"], ["amp-keys", "member-keys"]] as const) {
+      for (const other of amps.filter((a) => a !== amp)) expect(dist(amp, player)).toBeLessThan(dist(other, player));
+    }
   });
 
   it("has no item inside backline gear", () => {
@@ -84,6 +91,36 @@ describe("default layout — audience-facing sides", () => {
     const normalized = normalizeStageLayout(oldDraft, layout);
     expect(find(normalized, "member-bass").position).toEqual([2.5, 0, 0.5]);
     expect(validateAgainstReference(normalized, layout)).toEqual([]);
+  });
+});
+
+describe("migrateStoredLayout (stored drafts only)", () => {
+  const P = (x: number, z: number) => [x, 0, z] as [number, number, number];
+  const oldBackline = () => ({
+    ...layout,
+    items: layout.items.map((i) =>
+      i.id === "amp-guitar" ? { ...i, position: P(-3.5, -2.75) }
+      : i.id === "amp-bass" ? { ...i, position: P(3.5, -2.75) }
+      : i.id === "amp-keys" ? { ...i, position: P(-5, -2.75) }
+      : i.id === "member-vocal" ? { ...i, position: P(1.25, 2) }
+      : i
+    ),
+  });
+
+  it("a draft with the old backline fails validation as stored, passes once migrated", () => {
+    expect(validateAgainstReference(oldBackline(), layout).join()).toMatch(/locked item cannot move/);
+    expect(validateAgainstReference(migrateStoredLayout(oldBackline(), layout), layout)).toEqual([]);
+  });
+
+  it("moves only locked gear; the artist's members and instruments keep their coordinates", () => {
+    const migrated = migrateStoredLayout(oldBackline(), layout);
+    expect(find(migrated, "amp-bass").position).toEqual([-3.5, 0, -2.75]);
+    expect(find(migrated, "member-vocal").position).toEqual([1.25, 0, 2]);
+    for (const i of migrated.items.filter((x) => isMovable(x))) expect(i).toEqual(find(oldBackline(), i.id));
+  });
+
+  it("returns the same object when nothing needs migrating", () => {
+    expect(migrateStoredLayout(layout, layout)).toBe(layout);
   });
 });
 

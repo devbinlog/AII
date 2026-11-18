@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, requireStudio } from "@/lib/studio/api";
-import { defaultStageLayout, normalizeStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
+import { defaultStageLayout, migrateStoredLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
 
 /**
  * Publish the saved draft as a new immutable version (artist admins only).
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
   const parsed = parseStageLayout(draft);
   if (!parsed.ok) return apiError("INVALID_LAYOUT", 422, parsed.error);
   const reference = defaultStageLayout(ctx.artistId);
-  // Drafts saved before new default items existed get them added (and stored) first.
-  const normalized = normalizeStageLayout(parsed.layout, reference);
+  // Stored drafts pick up new default items and the current locked backline (and are re-stored) first.
+  const normalized = migrateStoredLayout(parsed.layout, reference);
   const problems = validateAgainstReference(normalized, reference);
   if (problems.length > 0) return apiError("INVALID_LAYOUT", 422, problems[0], problems);
   if (normalized !== parsed.layout) await repo.stage.save(normalized);

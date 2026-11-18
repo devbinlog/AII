@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, readJson, requireStudio } from "@/lib/studio/api";
-import { defaultStageLayout, normalizeStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
+import { defaultStageLayout, migrateStoredLayout, normalizeStageLayout, parseStageLayout, validateAgainstReference } from "@/lib/stage";
 
 /** The artist's saved stage layout, or the default band layout if none is saved. */
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json({
     ok: true,
-    layout: saved ? normalizeStageLayout(saved, defaultStageLayout(ctx.artistId)) : defaultStageLayout(ctx.artistId),
+    layout: saved ? migrateStoredLayout(saved, defaultStageLayout(ctx.artistId)) : defaultStageLayout(ctx.artistId),
     saved: saved !== null,
     publication,
     versions: versions.map((v) => ({ id: v.id, version: v.version, publishedAt: v.publishedAt })),

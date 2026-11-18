@@ -156,3 +156,27 @@ describe("Default layout change (2026-11-18) leaves stored layouts alone", () =>
     expect((await publicItems()).items).toEqual(before.items);
   });
 });
+
+describe("Amp move (2026-11-18): drafts stored with the old backline", () => {
+  const P = (x: number, z: number) => [x, 0, z] as [number, number, number];
+  const storedOld = () => {
+    const l = defaultStageLayout("art_001");
+    const old: Record<string, [number, number, number]> = { "amp-guitar": P(-3.5, -2.75), "amp-bass": P(3.5, -2.75), "amp-keys": P(-5, -2.75), "member-vocal": P(0.75, 2) };
+    return { ...l, items: l.items.map((i) => (old[i.id] ? { ...i, position: old[i.id]! } : i)) };
+  };
+
+  it("load returns the new backline and the artist's own member positions; publish succeeds", async () => {
+    await getRepository().stage.save(storedOld()); // as if saved before the change (bypasses PUT validation)
+    const draft = ((await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: { items: StageItem[] } }).layout.items;
+    expect(pos(draft, "amp-bass")).toEqual([-3.5, 0, -2.75]);
+    expect(pos(draft, "amp-guitar")).toEqual([3.5, 0, -2.75]);
+    expect(pos(draft, "member-vocal")).toEqual([0.75, 0, 2]);
+    expect((await publish(admin)).status).toBe(201);
+    expect(pos((await publicItems()).items, "member-vocal")).toEqual([0.75, 0, 2]);
+  });
+
+  it("an incoming save that moves an amp is still rejected, not silently fixed", async () => {
+    const tampered = storedOld();
+    expect((await save(admin, tampered)).status).toBe(422);
+  });
+});

@@ -9,7 +9,11 @@ import { DesktopNavAuth, MobileNavAuth } from "./nav-auth";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/explore", label: "Explore" },
+  { href: "/stage", label: "Stage" },
 ] as const;
+
+const isActive = (pathname: string, href: string) =>
+  href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`) || (href === "/stage" && /^\/artists\/[^/]+\/stage$/.test(pathname));
 
 export function Navbar() {
   const pathname = usePathname();
@@ -55,9 +59,10 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive(pathname, href) ? "page" : undefined}
                 className={cn(
                   "text-sm font-medium transition-colors",
-                  pathname === href
+                  isActive(pathname, href)
                     ? "text-[var(--color-fg)]"
                     : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                 )}
@@ -127,9 +132,10 @@ export function Navbar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive(pathname, href) ? "page" : undefined}
                 className={cn(
                   "py-4 text-2xl font-semibold tracking-tight border-b border-[var(--color-border)] transition-colors",
-                  pathname === href
+                  isActive(pathname, href)
                     ? "text-[var(--color-fg)]"
                     : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                 )}

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth/client";
+import { safeRedirect } from "@/lib/auth/redirect";
 
 const DEMO_ACCOUNTS = [
   { email: "studio@freefallers.com", role: "Artist Studio (admin)" },
@@ -15,19 +16,24 @@ const DEMO_ACCOUNTS = [
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Only same-site paths: "/x" but not "//host" or "/\host" (open-redirect guard).
-  const requested = searchParams.get("redirect");
-  const redirectTo = requested && /^\/(?![/\\])/.test(requested) ? requested : "/me/artworks";
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const forStudio = redirectTo.startsWith("/studio");
 
-  const [email, setEmail] = useState(forStudio ? "studio@freefallers.com" : "");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Uncontrolled inputs: whatever is typed into the server-rendered form — even
+  // during hydration — is kept; values are read from the form on submit.
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  // Set when the no-JS form post (a submit before hydration) bounced back with an error.
+  const bounced = ({ invalid: "Email or password is incorrect.", missing: "Enter your email and password." } as Record<string, string>)[searchParams.get("error") ?? ""];
+  const [error, setError] = useState<string | null>(bounced ?? null);
   const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    const data = new FormData(e.currentTarget);
+    const email = String(data.get("email") ?? "");
+    const password = String(data.get("password") ?? "");
 
     startTransition(async () => {
       const result = await signIn(email, password);
@@ -41,7 +47,10 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    // method/action: a submit before hydration is a real POST that signs in (never a
+    // GET with credentials in the URL). Once hydrated, onSubmit takes over via fetch.
+    <form onSubmit={handleSubmit} method="post" action="/api/auth/signin" className="space-y-5">
+      <input type="hidden" name="redirect" value={redirectTo} />
       {error && (
         <div
           role="alert"
@@ -54,8 +63,9 @@ export function LoginForm() {
       <Input
         label="Email"
         type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        name="email"
+        ref={emailRef}
+        defaultValue={forStudio ? "studio@freefallers.com" : ""}
         placeholder="fan1@example.com"
         autoComplete="email"
         required
@@ -65,8 +75,8 @@ export function LoginForm() {
       <Input
         label="Password"
         type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        name="password"
+        ref={passwordRef}
         placeholder="Any password"
         autoComplete="current-password"
         required
@@ -88,8 +98,8 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail(a.email);
-                  if (!password) setPassword("demo");
+                  if (emailRef.current) emailRef.current.value = a.email;
+                  if (passwordRef.current && !passwordRef.current.value) passwordRef.current.value = "demo";
                 }}
                 className="underline underline-offset-2 hover:opacity-80"
               >

@@ -127,3 +127,17 @@ test.describe("Mobile menu robustness", () => {
     await expect(menu).toBeHidden();
   });
 });
+
+test.describe("Sign-in works before hydration", () => {
+  test("a submit on the server-rendered form (JS still loading) signs in via form post", async ({ page }) => {
+    await page.route(/\/_next\/static\/.*\.js/, async (r) => {
+      await new Promise((ok) => setTimeout(ok, 3000));
+      await r.continue();
+    });
+    await page.goto("/login", { waitUntil: "commit" });
+    await page.getByRole("textbox", { name: /email/i }).fill("fan1@example.com");
+    await page.locator("input[type='password']").fill("demo");
+    await page.getByRole("button", { name: /^Sign in/i }).click();
+    await expect(page).toHaveURL(/\/me\/artworks/, { timeout: 20000 });
+  });
+});

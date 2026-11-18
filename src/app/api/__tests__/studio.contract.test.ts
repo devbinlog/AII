@@ -131,6 +131,32 @@ describe("Identity Editor", () => {
     expect(artist.socialLinks.website).toBe("https://freefallers.example");
   });
 
+  it("brand kit: name, typeface and logo are saved and merged; colors untouched", async () => {
+    const patch = (body: unknown) => artistRoute.PATCH(req("/api/studio/artist", { method: "PATCH", token: admin, body }));
+    const logo = { mark: "circle", monogram: "FF", layout: "inline", case: "upper", tracking: "wide", weight: "black" };
+    const res = await patch({ branding: { wordmark: "  FREE/FALLERS ", fontFamily: "display", logo } });
+    expect(res.status).toBe(200);
+    const { artist } = await json<{ artist: { branding: Record<string, unknown> } }>(res);
+    expect(artist.branding.wordmark).toBe("FREE/FALLERS");
+    expect(artist.branding.fontFamily).toBe("display");
+    expect(artist.branding.logo).toEqual(logo);
+    expect(artist.branding.primaryColor).toMatch(/^#[0-9a-f]{6}$/i);
+
+    // Clearing returns to the defaults
+    const cleared = await json<{ artist: { branding: Record<string, unknown> } }>(await patch({ branding: { wordmark: null, fontFamily: null, logo: null } }));
+    expect(cleared.artist.branding).toMatchObject({ wordmark: null, fontFamily: null, logo: null });
+  });
+
+  it("brand kit rejects unknown fonts, bad logo values, long names and extra logo keys", async () => {
+    const patch = (branding: unknown) => artistRoute.PATCH(req("/api/studio/artist", { method: "PATCH", token: admin, body: { branding } }));
+    const logo = { mark: "circle", monogram: "FF", layout: "inline", case: "upper", tracking: "wide", weight: "black" };
+    expect((await patch({ fontFamily: "Comic Sans; color:red" })).status).toBe(400);
+    expect((await patch({ logo: { ...logo, mark: "star" } })).status).toBe(400);
+    expect((await patch({ logo: { ...logo, monogram: "ABCD" } })).status).toBe(400);
+    expect((await patch({ logo: { ...logo, svg: "<script>" } })).status).toBe(400);
+    expect((await patch({ wordmark: "x".repeat(41) })).status).toBe(400);
+  });
+
   it("rejects non-https social links", async () => {
     const res = await artistRoute.PATCH(req("/api/studio/artist", { method: "PATCH", token: admin, body: { socialLinks: { website: "javascript:alert(1)" } } }));
     expect(res.status).toBe(400);

@@ -65,8 +65,20 @@ export interface ArtistBranding {
   backgroundColor: HexColor;
   logoUrl: ImageURL | null;
   coverImageUrl: ImageURL | null;
+  /** Brand typeface key (see BRAND_FONTS in lib/brand); null = platform default */
   fontFamily: string | null;
   motionPreset: "subtle" | "moderate" | "expressive";
+  /** Brand name as styled in the logo, if it differs from the artist name */
+  wordmark?: string | null;
+  /** Generated logo settings (lib/brand BrandLogo); absent = wordmark only */
+  logo?: {
+    mark: "none" | "circle" | "square" | "diamond" | "ring" | "slash";
+    monogram: string;
+    layout: "inline" | "stacked" | "mark-only";
+    case: "as-typed" | "upper" | "lower";
+    tracking: "tight" | "normal" | "wide";
+    weight: "regular" | "bold" | "black";
+  } | null;
 }
 
 export interface ArtistSocialLinks {

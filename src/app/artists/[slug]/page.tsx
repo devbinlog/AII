@@ -2,6 +2,8 @@
 // Static params cannot be determined at build time in MOCK_ONLY mode.
 export const dynamic = "force-dynamic";
 
+import { ArtistLogo } from "@/components/brand/artist-logo";
+import { TRACKING_EM, brandFontStack, brandName } from "@/lib/brand/brand";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -209,15 +211,22 @@ export default async function ArtistProfilePage({ params }: PageProps) {
             </Badge>
           </div>
 
+          {artist.branding.logo && artist.branding.logo.mark !== "none" && (
+            <ArtistLogo branding={{ ...artist.branding, logo: { ...artist.branding.logo, layout: "mark-only" } }} artistName={artist.name} size="lg" className="mb-6" />
+          )}
           <h1
             className="heading-display"
+            aria-label={brandName(artist.branding, artist.name) !== artist.name ? artist.name : undefined}
             style={{
               fontSize: "clamp(4rem,12vw,12rem)",
               color: "#f5f5f0",
               lineHeight: 0.9,
+              fontFamily: brandFontStack(artist.branding.fontFamily),
+              ...(artist.branding.logo ? { letterSpacing: TRACKING_EM[artist.branding.logo.tracking] } : {}),
+              ...(artist.branding.logo?.case === "upper" ? { textTransform: "uppercase" as const } : artist.branding.logo?.case === "lower" ? { textTransform: "lowercase" as const } : {}),
             }}
           >
-            {artist.name}
+            {brandName(artist.branding, artist.name)}
           </h1>
 
           <div className="mt-6 flex flex-wrap gap-2">

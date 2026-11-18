@@ -13,7 +13,7 @@ export default async function StudioIdentityPage() {
   if (access.status !== "ok") return <StudioForbidden />;
   return (
     <>
-      <StudioPageHeader eyebrow="Identity" title="Artist identity" description="Your public name, bio, genres, links and brand colors." />
+      <StudioPageHeader eyebrow="Identity" title="Artist identity" description="Your brand kit (name, typeface, logo, colors), plus bio, genres and links." />
       <IdentityForm artist={access.artist} canEdit={access.can("identity.edit")} />
     </>
   );

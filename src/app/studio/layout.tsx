@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ArtistLogo } from "@/components/brand/artist-logo";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { hasStudioAccess, resolveStudioArtistId } from "@/lib/studio/policy";
@@ -45,7 +46,7 @@ export default async function StudioLayout({ children }: { children: React.React
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full" style={{ backgroundColor: artist.branding.primaryColor }} />
                 </div>
                 <div className="p-3">
-                  <p className="font-semibold leading-tight">{artist.name}</p>
+                  <ArtistLogo branding={artist.branding} artistName={artist.name} size="sm" color="var(--color-fg)" className="max-w-full" />
                   <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-[var(--color-fg-subtle)]">{ROLE_LABEL[session.role] ?? session.role}</p>
                   <Link href={`/artists/${artist.slug}`} className="mt-2 inline-block text-xs text-[var(--color-fg-muted)] underline underline-offset-4 hover:text-[var(--color-fg)]">
                     View public profile →

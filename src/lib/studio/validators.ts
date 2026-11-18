@@ -2,6 +2,17 @@
 // so clients cannot set server-owned fields (ids, artistId, status, counters).
 
 import { z } from "zod";
+import {
+  BRAND_FONT_KEYS,
+  LOGO_CASES,
+  LOGO_LAYOUTS,
+  LOGO_MARKS,
+  LOGO_TRACKING,
+  LOGO_WEIGHTS,
+  MONOGRAM_MAX,
+  WORDMARK_MAX,
+  type BrandFontKey,
+} from "@/lib/brand/brand";
 
 const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a #RRGGBB color");
 const url = z.string().trim().max(500).refine((v) => v === "" || /^https:\/\//.test(v), "Must be an https:// URL");
@@ -22,6 +33,19 @@ export const UpdateArtistSchema = z
         accentColor: hex,
         backgroundColor: hex,
         motionPreset: z.enum(["subtle", "moderate", "expressive"]),
+        wordmark: z.string().trim().max(WORDMARK_MAX).nullable(),
+        fontFamily: z.enum(BRAND_FONT_KEYS as [BrandFontKey, ...BrandFontKey[]]).nullable(),
+        logo: z
+          .object({
+            mark: z.enum(LOGO_MARKS),
+            monogram: z.string().trim().max(MONOGRAM_MAX).refine((s) => [...s].length <= MONOGRAM_MAX, "at most 3 characters"),
+            layout: z.enum(LOGO_LAYOUTS),
+            case: z.enum(LOGO_CASES),
+            tracking: z.enum(LOGO_TRACKING),
+            weight: z.enum(LOGO_WEIGHTS),
+          })
+          .strict()
+          .nullable(),
       })
       .partial(),
     socialLinks: z

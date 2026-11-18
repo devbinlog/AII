@@ -224,6 +224,22 @@
     }
   }
 
+  /* AII platform artwork: playhead sweep (Home hero). GPU transform only;
+     parked at a fixed point when the user prefers reduced motion. */
+  .aii-playhead {
+    transform: translateX(38%);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .aii-playhead {
+      animation: aii-sweep 12s linear infinite;
+      will-change: transform;
+    }
+  }
+  @keyframes aii-sweep {
+    from { transform: translateX(0%); }
+    to { transform: translateX(100%); }
+  }
+
   /* Focus visible */
   :focus-visible {
     outline: 2px solid var(--color-accent);

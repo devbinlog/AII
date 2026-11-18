@@ -135,6 +135,43 @@ test.describe("Stage publish workflow (serial)", () => {
     await fanCtx.close();
   });
 
+  test("save and restore the draft layout (survives reload)", async ({ page }) => {
+    await signIn(page.request, "studio@freefallers.com");
+    await page.goto("/studio/stage");
+    await waitForCanvas(page);
+    await page.getByRole("button", { name: /^Vocal mic/ }).click();
+    await page.getByRole("button", { name: "Move stage left" }).click();
+    const moved = await posOf(page, "mic-vocal");
+    await page.getByRole("button", { name: "Save layout" }).click();
+    await expect(page.getByRole("status").first()).toContainText("Layout saved");
+
+    await page.getByRole("button", { name: "Move stage left" }).click();
+    expect(await posOf(page, "mic-vocal")).not.toEqual(moved);
+    await page.getByRole("button", { name: "Restore saved" }).click();
+    await expect.poll(() => posOf(page, "mic-vocal")).toEqual(moved);
+
+    await page.reload();
+    await waitForCanvas(page);
+    await expect.poll(() => posOf(page, "mic-vocal"), { timeout: 15000 }).toEqual(moved);
+  });
+
+  test("Studio sidebar status updates right after publishing, without a reload", async ({ page }) => {
+    await signIn(page.request, "studio@freefallers.com");
+    await page.goto("/studio/stage");
+    await waitForCanvas(page);
+    const stageRow = page.getByRole("complementary", { name: "Studio sidebar" }).getByRole("region", { name: "Live now" }).getByRole("link", { name: /^Stage/ });
+    await expect(stageRow).toBeVisible();
+    await page.getByRole("button", { name: /^Vocal performer/i }).click();
+    await page.getByRole("button", { name: "Move downstage" }).click();
+    await page.getByRole("button", { name: "Save layout" }).click();
+    await expect(page.getByRole("status").first()).toContainText("Layout saved");
+    await page.getByRole("button", { name: /Publish (stage|new version)/ }).click();
+    await expect(page.getByRole("status").first()).toContainText(/Published stage v\d+/);
+    const v = (await page.getByRole("status").first().textContent())?.match(/v(\d+)/)?.[1];
+    expect(v).toBeTruthy();
+    await expect(stageRow).toContainText(`Public v${v}`);
+  });
+
   test("F: unpublish from Studio closes the fan viewer", async ({ page, browser }) => {
     await signIn(page.request, "studio@freefallers.com");
     await page.goto("/studio/stage");

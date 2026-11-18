@@ -154,11 +154,27 @@ const store: MockStore = (globalForMock.__aiiMockStore = { ...createStore(), ...
  * Test fixture reset (dev/E2E only): restore every collection to the fixtures so
  * runs do not accumulate data. Sessions are kept by default, so anyone signed in
  * to the dev server stays signed in.
+ *
+ * Collections are reset IN PLACE: Next evaluates this module once per bundle, and
+ * each bundle's `store` object shares the same array/Map/Set instances. Replacing
+ * a property would only update one bundle (API writes and page reads would then
+ * diverge). idCounter is deliberately not rewound, so ids are never reused.
  */
 export function resetMockData(options: { keepSessions?: boolean } = {}): void {
-  const sessions = store.sessions;
-  Object.assign(store, createStore());
-  if (options.keepSessions !== false) store.sessions = sessions;
+  const fresh = createStore();
+  for (const key of Object.keys(fresh) as (keyof MockStore)[]) {
+    if (key === "sessions" && options.keepSessions !== false) continue;
+    const target = store[key] as unknown;
+    const source = fresh[key] as unknown;
+    if (Array.isArray(target) && Array.isArray(source)) target.splice(0, target.length, ...source);
+    else if (target instanceof Map && source instanceof Map) {
+      target.clear();
+      source.forEach((v, k) => target.set(k, v));
+    } else if (target instanceof Set && source instanceof Set) {
+      target.clear();
+      source.forEach((v) => target.add(v));
+    }
+  }
 }
 
 // ============================================================

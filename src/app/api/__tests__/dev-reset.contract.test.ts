@@ -18,6 +18,17 @@ describe("POST /api/dev/reset-mock", () => {
     expect(await mockRegistry.auth.getSession(sessionToken)).not.toBeNull();
   });
 
+  it("resets in place, so every bundle's view of the store sees it", async () => {
+    const g = globalThis as unknown as { __aiiMockStore: { campaigns: unknown[] } };
+    await POST();
+    const ref = g.__aiiMockStore.campaigns; // another bundle holds this same array instance
+    const fixtureCount = ref.length;
+    ref.push({ id: "junk" });
+    await POST();
+    expect(g.__aiiMockStore.campaigns).toBe(ref);
+    expect(ref.length).toBe(fixtureCount);
+  });
+
   it("is a 404 in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     expect((await POST()).status).toBe(404);

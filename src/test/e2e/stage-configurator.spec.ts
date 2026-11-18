@@ -129,23 +129,7 @@ test.describe("3D Stage Configurator", () => {
     await page.getByRole("button", { name: /^Bass amp/ }).click();
     await expect(page.getByRole("group", { name: /Move Bass amp/ })).toHaveCount(0);
   });
-
-  test("save and restore the layout", async ({ page }) => {
-    await openStage(page);
-    await page.getByRole("button", { name: /^Vocal mic/ }).click();
-    await page.getByRole("button", { name: "Move stage left" }).click();
-    const moved = await pos(page, "mic-vocal");
-    await page.getByRole("button", { name: "Save layout" }).click();
-    await expect(page.getByRole("status")).toContainText("Layout saved");
-
-    await page.getByRole("button", { name: "Move stage left" }).click();
-    expect(await pos(page, "mic-vocal")).not.toEqual(moved);
-    await page.getByRole("button", { name: "Restore saved" }).click();
-    await expect.poll(() => pos(page, "mic-vocal")).toEqual(moved);
-
-    await page.reload();
-    await expect.poll(() => pos(page, "mic-vocal"), { timeout: 15000 }).toEqual(moved);
-  });
+  // Saving/restoring writes the shared draft: covered in public-stage.spec.ts (serial workflow).
 });
 
 test.describe("3D Stage Configurator — layout & motion", () => {
@@ -261,27 +245,18 @@ test.describe("3D Stage — label collisions", () => {
 
 test.describe("Studio sidebar", () => {
   test.beforeEach(({}, info) => {
-    test.skip(info.project.name !== "edge", "touches global publication state; desktop sidebar");
+    test.skip(info.project.name.includes("mobile"), "desktop sidebar");
   });
 
-  test("shows the artist card and live status, and updates after publishing without a reload", async ({ page }) => {
+  // Read-only here; the publish → status update check writes global state and lives
+  // in the serial workflow in public-stage.spec.ts.
+  test("shows the artist card, grouped nav and live status", async ({ page }) => {
     await openStage(page);
     const sidebar = page.getByRole("complementary", { name: "Studio sidebar" });
     await expect(sidebar.getByText("Freefallers", { exact: true })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "View public profile →" })).toHaveAttribute("href", "/artists/freefallers");
-    const stageRow = sidebar.getByRole("region", { name: "Live now" }).getByRole("link", { name: /^Stage/ });
-    await expect(stageRow).toBeVisible();
-
-    // Make a saved change, publish, and the sidebar reflects the new version immediately
-    await page.getByRole("button", { name: /^Vocal/ }).first().click();
-    await page.getByRole("button", { name: "Move downstage" }).click();
-    await page.getByRole("button", { name: "Save layout" }).click();
-    await expect(page.getByRole("status").first()).toContainText("Layout saved");
-    await page.getByRole("button", { name: /Publish (stage|new version)/ }).click();
-    const published = await page.getByRole("status").first().textContent();
-    const v = published?.match(/v(\d+)/)?.[1];
-    expect(v).toBeTruthy();
-    await expect(stageRow).toContainText(`Public v${v}`);
+    await expect(sidebar.getByText("Fans & live")).toBeVisible();
+    await expect(sidebar.getByRole("region", { name: "Live now" }).getByRole("link", { name: /^Stage/ })).toBeVisible();
   });
 
   test("amps sit behind their players (audience view)", async ({ page }) => {

@@ -282,3 +282,51 @@ test.describe("Responsive — 375px mobile", () => {
     await expect(page.getByText("Moonwave I", { exact: true })).toBeVisible();
   });
 });
+
+test.describe("2026-11-18 additions", () => {
+  test("top nav has a Stage link to the live-stage index", async ({ page }, info) => {
+    test.skip(info.project.name.includes("mobile"), "desktop nav");
+    await page.goto("/");
+    const stage = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "Stage" });
+    await expect(stage).toHaveAttribute("href", "/stage");
+    await stage.click();
+    await expect(page).toHaveURL("/stage");
+    await expect(page.getByRole("heading", { name: "Step onto the stage" })).toBeVisible();
+    await expect(stage).toHaveAttribute("aria-current", "page");
+  });
+
+  test("Home hero artwork is labelled platform art and parks its playhead under reduced motion", async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    await expect(page.getByText("AII platform artwork")).toBeVisible();
+    const anim = await page.locator(".aii-playhead").evaluate((el) => getComputedStyle(el).animationName);
+    expect(anim).toBe("none");
+    await ctx.close();
+  });
+
+  test("Home playhead animates when motion is allowed", async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: "no-preference" });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    expect(await page.locator(".aii-playhead").evaluate((el) => getComputedStyle(el).animationName)).toBe("aii-sweep");
+    await ctx.close();
+  });
+
+  test("Explore empty state offers a reset that restores results", async ({ page }) => {
+    await page.goto("/explore");
+    await page.getByRole("searchbox").fill("zzznomatch999");
+    await page.getByRole("button", { name: "Clear search and filters" }).click();
+    await expect(page.getByRole("searchbox")).toHaveValue("");
+    await expect(results(page).getByRole("heading", { name: "Freefallers" })).toBeVisible();
+  });
+
+  test("dates render in English regardless of browser locale", async ({ browser }) => {
+    const ctx = await browser.newContext({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    await expect(page.getByText(/September 15, 2026/).first()).toBeVisible();
+    await expect(page.locator("main")).not.toContainText(/\d{4}년/);
+    await ctx.close();
+  });
+});

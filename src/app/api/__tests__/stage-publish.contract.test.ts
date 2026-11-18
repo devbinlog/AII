@@ -118,3 +118,41 @@ describe("Stage publish workflow", () => {
     expect(Object.keys(mod).sort()).toEqual(["GET"]);
   });
 });
+
+describe("Default layout change (2026-11-18) leaves stored layouts alone", () => {
+  // The pre-change arrangement: guitar & keys on audience left (-X), bass on the right (+X).
+  const legacy = () => {
+    const l = defaultStageLayout("art_001");
+    const at: Record<string, [number, number, number]> = {
+      "member-guitar": [-2.5, 0, 0.5], guitar: [-2.5, 0, 1],
+      "member-bass": [2.5, 0, 0.5], bass: [2.5, 0, 1],
+      "member-keys": [-4.5, 0, -1.6], keyboard: [-4.25, 0, -0.75],
+    };
+    return { ...l, items: l.items.map((i) => (at[i.id] ? { ...i, position: at[i.id]! } : i)) };
+  };
+
+  it("a draft saved in the old arrangement is accepted and returned unchanged", async () => {
+    expect((await save(admin, legacy())).status).toBe(200);
+    const draft = ((await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: { items: StageItem[] } }).layout.items;
+    for (const id of ["member-guitar", "guitar", "member-bass", "bass", "member-keys", "keyboard"]) {
+      expect(pos(draft, id)).toEqual(legacy().items.find((i) => i.id === id)!.position);
+    }
+  });
+
+  it("a version published from it keeps the old coordinates, independent of the new default", async () => {
+    expect((await publish(admin)).status).toBe(201);
+    const pub = await publicItems();
+    expect(pos(pub.items, "member-bass")).toEqual([2.5, 0, 0.5]);
+    expect(pos(pub.items, "keyboard")).toEqual([-4.25, 0, -0.75]);
+    // …while the default itself is the new audience-facing one
+    expect(pos(defaultStageLayout("art_001").items, "member-bass")).toEqual([-2.5, 0, 0.5]);
+  });
+
+  it("resetting to the default is an explicit save, and only then changes the draft — not the published version", async () => {
+    const before = await publicItems();
+    expect((await save(admin, defaultStageLayout("art_001"))).status).toBe(200);
+    const draft = ((await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: { items: StageItem[] } }).layout.items;
+    expect(pos(draft, "member-bass")).toEqual([-2.5, 0, 0.5]);
+    expect((await publicItems()).items).toEqual(before.items);
+  });
+});

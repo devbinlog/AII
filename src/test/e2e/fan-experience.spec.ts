@@ -392,7 +392,8 @@ test.describe("WS-02 Regression", () => {
 
   test("Explore page still renders", async ({ page }) => {
     await page.goto("/explore");
-    await expect(page.getByText("Freefallers")).toBeVisible({ timeout: 6000 });
+    // The name also appears in the cover story and bio by design; check the results grid.
+    await expect(page.getByRole("region", { name: "Results" }).getByRole("heading", { name: "Freefallers" })).toBeVisible({ timeout: 6000 });
   });
 
   test("Freefallers artist profile still renders", async ({ page }) => {

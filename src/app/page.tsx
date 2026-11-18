@@ -265,12 +265,13 @@ function StagePreview({ artist, items, published, href }: { artist: Artist | nul
   );
 }
 
-function Curated({ release, campaign }: { release: Release | null; campaign: Campaign | null }) {
+function Curated({ release, campaign, stage }: { release: Release | null; campaign: Campaign | null; stage: { href: string; meta: string } }) {
   const rows = [
     release && { verb: "Listen", title: release.title, meta: `${release.tracks.length} tracks · ${release.type}`, href: `/releases/${release.id}` },
     campaign && { verb: "Make", title: "Create your artwork", meta: campaign.title, href: `/campaigns/${campaign.slug}/create` },
-    campaign && { verb: "See", title: "Fan gallery", meta: `${formatCount(campaign.artworkCount)} artworks`, href: `/campaigns/${campaign.slug}/gallery` },
     { verb: "Explore", title: "Artists & releases", meta: "The full index", href: "/explore" },
+    campaign && { verb: "See", title: "Fan gallery", meta: `${formatCount(campaign.artworkCount)} artworks`, href: `/campaigns/${campaign.slug}/gallery` },
+    { verb: "Together", title: "On stage with the band", meta: stage.meta, href: stage.href },
   ].filter((r): r is { verb: string; title: string; meta: string; href: string } => !!r);
   return (
     <section className="border-b border-[var(--color-border)]" aria-labelledby="curated">
@@ -320,7 +321,11 @@ export default async function HomePage() {
       {featuredArtist && <FeaturedArtist artist={featuredArtist} />}
       {featuredRelease && <ReleaseAndExperience release={featuredRelease} campaign={activeCampaign} artist={featuredArtist} />}
       <StagePreview artist={featuredArtist} items={stageItems} published={publishedStage ? { version: publishedStage.version } : null} href={stageHref} />
-      <Curated release={featuredRelease} campaign={activeCampaign} />
+      <Curated
+        release={featuredRelease}
+        campaign={activeCampaign}
+        stage={{ href: stageHref, meta: publishedStage && featuredArtist ? `${featuredArtist.name} · 3D stage v${publishedStage.version}` : "The 3D hologram stage" }}
+      />
 
       {/* For artists */}
       <section className="bg-[var(--aii-ink)] text-[var(--aii-paper)]">

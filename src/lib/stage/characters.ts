@@ -27,6 +27,35 @@ export const ROLE_STYLES: Record<PerformerRole, RoleStyle> = {
   keys: { label: "Keys", color: "#7fa3ff", accent: "#a3a0ff", base: "square", scale: 1 },
 };
 
+/** Lineup order in the picker. */
+export const PERFORMER_ROLES: readonly PerformerRole[] = ["vocal", "guitar", "bass", "keys", "drums"];
+
+/**
+ * Items that join or leave the stage together with each role. The drum kit and the
+ * amps are fixed backline and stay even when their player is benched.
+ */
+export const ROLE_ITEMS: Record<PerformerRole, readonly string[]> = {
+  vocal: ["member-vocal", "mic-vocal"],
+  guitar: ["member-guitar", "guitar"],
+  bass: ["member-bass", "bass"],
+  keys: ["member-keys", "keyboard"],
+  drums: ["member-drums"],
+};
+
+/** Instrument shown on each role's lineup card. */
+export const ROLE_INSTRUMENT: Record<PerformerRole, string> = {
+  vocal: "Vocal mic",
+  guitar: "Electric guitar",
+  bass: "Bass guitar",
+  keys: "Keyboard",
+  drums: "Drum kit",
+};
+
+/** Item ids removed from the stage by a set of benched roles. */
+export function benchedItemIds(benched: readonly PerformerRole[] | undefined): Set<string> {
+  return new Set((benched ?? []).flatMap((r) => ROLE_ITEMS[r]));
+}
+
 const ROLE_BY_ID: Record<string, PerformerRole> = {
   "member-vocal": "vocal",
   "member-guitar": "guitar",

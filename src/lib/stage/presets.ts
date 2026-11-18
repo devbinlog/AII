@@ -18,6 +18,7 @@
 //  • Saving an older backline than the one stored is rejected (no downgrade).
 //  • Published versions are immutable snapshots and never migrated.
 
+import { PERFORMER_ROLES, ROLE_ITEMS, type PerformerRole } from "./characters";
 import { CURRENT_BACKLINE, type BacklineVersion, type StageItem, type StageLayout, type Vec3 } from "./types";
 
 /** Locked amp positions per backline version. Drums are the same in every version. */
@@ -52,6 +53,42 @@ export function defaultStageLayout(artistId: string, now = new Date().toISOStrin
       { id: "keyboard", kind: "keyboard", label: "Keyboard", position: [4.25, 0, -0.75], rotationY: -0.4, locked: false },
     ],
   };
+}
+
+/** Roles currently off stage (in lineup order). */
+export function benchedRoles(layout: Pick<StageLayout, "benched">): PerformerRole[] {
+  const off = new Set(layout.benched ?? []);
+  return PERFORMER_ROLES.filter((r) => off.has(r));
+}
+
+/**
+ * Lineup picker: take a role off stage (its member and instrument leave) or bring it
+ * back (both return at their default spots, in default item order). Fixed backline
+ * stays. Refuses to bench the last member on stage. Other items are untouched.
+ */
+export function setRoleOnStage(layout: StageLayout, role: PerformerRole, onStage: boolean): StageLayout {
+  const off = new Set(layout.benched ?? []);
+  if (off.has(role) !== onStage) return layout; // already in that state
+  const ids = new Set(ROLE_ITEMS[role]);
+  let items: StageItem[];
+  if (onStage) {
+    off.delete(role);
+    const ref = defaultStageLayout(layout.artistId).items;
+    const order = new Map(ref.map((i, n) => [i.id, n]));
+    items = [...layout.items];
+    for (const add of ref.filter((i) => ids.has(i.id) && !items.some((x) => x.id === i.id))) {
+      const rank = order.get(add.id)!;
+      const at = items.findIndex((x) => (order.get(x.id) ?? Infinity) > rank);
+      items.splice(at === -1 ? items.length : at, 0, structuredClone(add));
+    }
+  } else {
+    items = layout.items.filter((i) => !ids.has(i.id));
+    if (!items.some((i) => i.kind === "performer")) return layout;
+    off.add(role);
+  }
+  const { benched: _drop, ...rest } = layout;
+  const next = PERFORMER_ROLES.filter((r) => off.has(r));
+  return next.length > 0 ? { ...rest, items, benched: next } : { ...rest, items };
 }
 
 const samePos = (a: Vec3, b: Vec3) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-6);

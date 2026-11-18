@@ -6,6 +6,8 @@ import {
   CURRENT_BACKLINE,
   GRID_STEP,
   backlineOf,
+  benchedRoles,
+  setRoleOnStage,
   defaultStageLayout,
   upgradeBackline,
   historyReducer,
@@ -24,6 +26,7 @@ import {
 import { studioFetch, describeDetails } from "@/components/studio/client-api";
 import { FormMessage } from "@/components/studio/ui";
 import { formatTime } from "@/lib/utils/format";
+import { LineupSelect } from "./lineup-select";
 
 // three.js only runs in the browser; keep it out of the server bundle and initial page JS.
 const StageCanvas = dynamic(() => import("./stage-canvas").then((m) => m.StageCanvas), {
@@ -342,6 +345,19 @@ export function StageConfigurator({
         )}
       </div>
       <FormMessage result={result} />
+
+      {!focus && (
+        <div className="stage-theme">
+          <LineupSelect
+            benched={benchedRoles(layout)}
+            canEdit={canEdit}
+            onToggle={(role, on) => {
+              step((l) => setRoleOnStage(l, role, on));
+              if (!on) setSelectedId(null);
+            }}
+          />
+        </div>
+      )}
 
       <div className={`stage-theme grid gap-3 ${focus ? "grid-cols-1" : "xl:grid-cols-[220px_minmax(0,1fr)_280px]"}`}>
         {/* Left — session members and objects */}

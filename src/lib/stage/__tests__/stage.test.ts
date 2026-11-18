@@ -23,6 +23,8 @@ import {
   ROLE_STYLES,
   parseStageLayout,
   rotateItem,
+  setRoleOnStage,
+  benchedRoles,
   validateAgainstReference,
 } from "..";
 
@@ -275,5 +277,43 @@ describe("camera", () => {
     const t = clampTarget([30, 10, 40]);
     expect(Math.hypot(t[0], t[2])).toBeCloseTo(8);
     expect(t[1]).toBe(4);
+  });
+});
+
+describe("lineup picker", () => {
+  const ids = (l: typeof layout) => l.items.map((i) => i.id);
+
+  it("benching a role removes its member and instrument; fixed backline stays", () => {
+    const l = setRoleOnStage(layout, "keys", false);
+    expect(ids(l)).not.toContain("member-keys");
+    expect(ids(l)).not.toContain("keyboard");
+    expect(ids(l)).toContain("amp-keys");
+    expect(benchedRoles(l)).toEqual(["keys"]);
+    expect(validateAgainstReference(l, layout)).toEqual([]);
+    expect(normalizeStageLayout(l, layout)).toBe(l); // never re-added
+  });
+
+  it("bringing it back restores default spots and order, leaving other items alone", () => {
+    const moved = moveItem(layout, "member-vocal", [1, 0, 2]);
+    const back = setRoleOnStage(setRoleOnStage(moved, "keys", false), "keys", true);
+    expect(back.items).toEqual(moved.items);
+    expect("benched" in back).toBe(false);
+  });
+
+  it("the drummer leaves but the drum kit stays; the last member cannot be benched", () => {
+    let l = setRoleOnStage(layout, "drums", false);
+    expect(ids(l)).toContain("drums");
+    expect(ids(l)).not.toContain("member-drums");
+    for (const r of ["vocal", "guitar", "bass"] as const) l = setRoleOnStage(l, r, false);
+    expect(setRoleOnStage(l, "keys", false)).toBe(l);
+    expect(validateAgainstReference({ ...l, benched: [...l.benched!, "keys"], items: l.items.filter((i) => i.kind !== "performer") }, layout).join()).toMatch(/at least one member/);
+  });
+
+  it("serialization keeps benched and stays lossless when absent", () => {
+    const l = setRoleOnStage(layout, "guitar", false);
+    const parsed = parseStageLayout(JSON.parse(serializeStageLayout(l)));
+    expect(parsed.ok && parsed.layout).toEqual(l);
+    const plain = parseStageLayout(JSON.parse(serializeStageLayout(layout)));
+    expect(plain.ok && "benched" in plain.layout).toBe(false);
   });
 });

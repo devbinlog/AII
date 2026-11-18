@@ -155,6 +155,29 @@ test.describe("3D Stage Configurator — layout & motion", () => {
     await expect(objects).toBeVisible();
   });
 
+  test("lineup picker takes a member and instrument off stage and brings them back (unsaved)", async ({ page }) => {
+    await openStage(page);
+    const lineup = page.getByRole("region", { name: /Lineup/ });
+    const keys = lineup.getByRole("button", { name: /^Keys:/ });
+    const ids = async () => (await readState(page)).items.map((i) => i.id);
+    await expect(keys).toHaveAttribute("aria-pressed", "true");
+
+    await keys.click();
+    await expect(keys).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(ids).not.toContain("member-keys");
+    expect(await ids()).not.toContain("keyboard");
+    expect(await ids()).toContain("amp-keys");
+    await expect(page.getByRole("complementary", { name: "Stage objects" }).getByRole("button", { name: /^Keys\s*performer$/i })).toHaveCount(0);
+    await expect(page.getByText("Unsaved changes")).toBeVisible();
+
+    await keys.click();
+    await expect(keys).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(ids).toContain("keyboard");
+    // Back at the default spot (the saved draft may have had Keys elsewhere, so no dirty-state assertion).
+    expect(await pos(page, "member-keys")).toEqual([4.5, 0, -1.6]);
+    expect(await pos(page, "keyboard")).toEqual([4.25, 0, -0.75]);
+  });
+
   test("labels toggle and locked state in the inspector", async ({ page }) => {
     await openStage(page);
     const labels = page.getByRole("button", { name: "Labels" });

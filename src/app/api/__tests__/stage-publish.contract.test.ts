@@ -12,7 +12,7 @@ import { getRepository } from "@/lib/repository";
 import * as studioStage from "@/app/api/studio/stage/route";
 import * as publishRoute from "@/app/api/studio/stage/publish/route";
 import { GET as publicStage } from "@/app/api/artists/[slug]/stage/route";
-import { CURRENT_BACKLINE, defaultStageLayout, moveItem, upgradeBackline, type StageItem, type StageLayout } from "@/lib/stage";
+import { CURRENT_BACKLINE, defaultStageLayout, moveItem, setRoleOnStage, upgradeBackline, type StageItem, type StageLayout } from "@/lib/stage";
 
 const BASE = "http://localhost:3000";
 const req = (path: string, method: string, token?: string, body?: unknown) => {
@@ -218,5 +218,58 @@ describe("Backline compatibility: stored drafts are never changed without the ar
     expect((await save(admin, moved)).status).toBe(422);
     const claimOld = { ...cur, backlineVersion: 1 as const };
     expect((await save(admin, claimOld)).status).toBe(422);
+  });
+});
+
+describe("Lineup picker: benched roles", () => {
+  const getDraft = async () => ((await (await studioStage.GET(req("/api/studio/stage", "GET", admin))).json()) as { layout: StageLayout }).layout;
+  const ids = (items: StageItem[]) => items.map((i) => i.id);
+
+  it("a benched role is saved, read back and published without its member and instrument", async () => {
+    const start = moveItem(await getDraft(), "member-vocal", [1, 0, 2]);
+    const lineup = setRoleOnStage(setRoleOnStage(start, "keys", false), "guitar", false);
+    expect((await save(admin, lineup)).status).toBe(200);
+
+    const read = await getDraft();
+    expect(read.benched).toEqual(["guitar", "keys"]);
+    for (const gone of ["member-keys", "keyboard", "member-guitar", "guitar"]) expect(ids(read.items)).not.toContain(gone);
+    for (const fixed of ["amp-keys", "amp-guitar", "drums"]) expect(ids(read.items)).toContain(fixed);
+    expect(pos(read.items, "member-vocal")).toEqual([1, 0, 2]);
+
+    // Reading never re-adds them, and a load → save round-trip is lossless
+    const before = await getRepository().stage.get("art_001");
+    expect((await save(admin, read)).status).toBe(200);
+    expect((await getRepository().stage.get("art_001"))!.items).toEqual(before!.items);
+
+    expect((await publish(admin)).status).toBe(201);
+    expect(ids((await publicItems()).items)).not.toContain("member-keys");
+  });
+
+  it("bringing a role back restores it at its default spot; the published version is unchanged", async () => {
+    const published = structuredClone((await publicItems()).items);
+    const back = setRoleOnStage(await getDraft(), "keys", true);
+    expect((await save(admin, back)).status).toBe(200);
+    const read = await getDraft();
+    expect(read.benched).toEqual(["guitar"]);
+    expect(pos(read.items, "member-keys")).toEqual(pos(defaultStageLayout("x").items, "member-keys"));
+    expect((await publicItems()).items).toEqual(published);
+  });
+
+  it("inconsistent lineups: benched item present or empty band rejected; un-benched item cannot be dropped", async () => {
+    const cur = await getDraft();
+    const claimed = { ...cur, benched: ["guitar", "vocal"] }; // vocal still on stage
+    expect((await save(admin, claimed)).status).toBe(422);
+    // An item dropped without benching its role is not removed: additive normalization restores it.
+    const dropped = { ...cur, items: cur.items.filter((i) => i.id !== "bass") };
+    const res = await save(admin, dropped);
+    expect(res.status).toBe(200);
+    expect(ids(((await res.json()) as { layout: StageLayout }).layout.items)).toContain("bass");
+    const empty = {
+      ...cur,
+      benched: ["vocal", "guitar", "bass", "keys", "drums"],
+      items: cur.items.filter((i) => i.locked),
+    };
+    expect((await save(admin, empty)).status).toBe(422);
+    expect((await save(admin, { ...cur, benched: ["bass", "bass"] })).status).toBe(400);
   });
 });

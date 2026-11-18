@@ -1,5 +1,6 @@
 // Pure layout operations: bounds, locks, snapping, movement.
 
+import { benchedItemIds } from "./characters";
 import type { StageBounds, StageItem, StageItemKind, StageLayout, Vec3 } from "./types";
 
 export const STAGE_BOUNDS: StageBounds = { halfWidth: 6, halfDepth: 4 };
@@ -91,27 +92,32 @@ export function rotateItem(layout: StageLayout, id: string, deltaRadians: number
 /**
  * Additive migration: items added to the default layout after a draft was saved
  * (e.g. the Keys member) are inserted at their default positions. Existing items,
- * coordinates and locks are untouched; published versions are never migrated.
+ * coordinates and locks are untouched; benched roles stay off stage; published
+ * versions are never migrated.
  */
 export function normalizeStageLayout(layout: StageLayout, reference: StageLayout): StageLayout {
   const have = new Set(layout.items.map((i) => i.id));
-  const missing = reference.items.filter((i) => !have.has(i.id));
+  const off = benchedItemIds(layout.benched);
+  const missing = reference.items.filter((i) => !have.has(i.id) && !off.has(i.id));
   return missing.length === 0 ? layout : { ...layout, items: [...layout.items, ...structuredClone(missing)] };
 }
 
 /**
  * Server-side guard: locked items must stay exactly where the reference layout
- * has them, every movable item must be inside the stage, and the item set
- * cannot change. Returns human-readable problems (empty = valid).
+ * has them, every movable item must be inside the stage, and the item set must
+ * be the reference set minus the benched roles (at least one member on stage).
+ * Returns human-readable problems (empty = valid).
  */
 export function validateAgainstReference(candidate: StageLayout, reference: StageLayout): string[] {
   const problems: string[] = [];
+  const off = benchedItemIds(candidate.benched);
   const refById = new Map(reference.items.map((i) => [i.id, i]));
   const seen = new Set<string>();
   for (const item of candidate.items) {
     if (seen.has(item.id)) problems.push(`duplicate item ${item.id}`);
     seen.add(item.id);
     const ref = refById.get(item.id);
+    if (off.has(item.id)) problems.push(`${item.id}: its role is benched`);
     if (!ref) {
       problems.push(`unknown item ${item.id}`);
       continue;
@@ -126,6 +132,7 @@ export function validateAgainstReference(candidate: StageLayout, reference: Stag
     }
     if (!isInsideStage(item)) problems.push(`${item.id}: outside the stage`);
   }
-  for (const id of refById.keys()) if (!seen.has(id)) problems.push(`missing item ${id}`);
+  for (const id of refById.keys()) if (!seen.has(id) && !off.has(id)) problems.push(`missing item ${id}`);
+  if (!candidate.items.some((i) => i.kind === "performer")) problems.push("at least one member must stay on stage");
   return problems;
 }

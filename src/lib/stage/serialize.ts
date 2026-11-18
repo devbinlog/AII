@@ -21,14 +21,19 @@ export const StageLayoutZod = z.object({
   items: z.array(StageItemZod).min(1).max(40),
   updatedAt: z.string(),
   backlineVersion: z.union([z.literal(1), z.literal(2)]).optional(),
+  benched: z
+    .array(z.enum(["vocal", "guitar", "bass", "drums", "keys"]))
+    .max(5)
+    .refine((a) => new Set(a).size === a.length, "duplicate role")
+    .optional(),
 });
 
 export function parseStageLayout(data: unknown): { ok: true; layout: StageLayout } | { ok: false; error: string } {
   const r = StageLayoutZod.safeParse(data);
   if (!r.success) return { ok: false, error: r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
-  // Keep the key absent (not undefined) on unversioned layouts so round-trips are lossless.
-  const { backlineVersion, ...rest } = r.data;
-  return { ok: true, layout: backlineVersion ? { ...rest, backlineVersion } : rest };
+  // Keep optional keys absent (not undefined) when they were absent, so round-trips are lossless.
+  const { backlineVersion, benched, ...rest } = r.data;
+  return { ok: true, layout: { ...rest, ...(backlineVersion ? { backlineVersion } : {}), ...(benched ? { benched } : {}) } };
 }
 
 export function serializeStageLayout(layout: StageLayout): string {

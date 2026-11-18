@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * Save a layout. The server re-checks everything the client enforces:
- * schema, same item set as the default layout, locked amps/drums unmoved,
+ * schema, the default item set minus benched lineup roles, locked amps/drums unmoved,
  * all items inside the stage. artistId always comes from the session.
  */
 export async function PUT(req: NextRequest) {

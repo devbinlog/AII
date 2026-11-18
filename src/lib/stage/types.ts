@@ -1,4 +1,6 @@
 // 3D Stage Configurator — core types (framework-free, no three.js imports).
+import type { PerformerRole } from "./characters";
+
 // Units are meters. The stage floor is the XZ plane at y = 0; +Z points to the audience.
 
 export type Vec3 = [number, number, number];
@@ -47,6 +49,12 @@ export interface StageLayout {
    * saved before backlines were versioned; see `backlineOf` for how those resolve.
    */
   backlineVersion?: BacklineVersion;
+  /**
+   * Session roles the artist took off stage in the lineup picker. Their member and
+   * instrument are absent from `items`, and additive normalization never re-adds them.
+   * Absent = nobody benched (every layout saved before the lineup picker).
+   */
+  benched?: PerformerRole[];
 }
 
 export interface StageBounds {

@@ -108,11 +108,11 @@ test.describe("3D Stage Configurator", () => {
     expect((await readState(page)).camera).toEqual(cameraBefore);
 
     // Keyboard footprint is 0.7 m → clamped to (6 - 0.7, 4 - 0.7)
-    await mouseDrag(page, at(-4.25, -0.75), at(20, 20));
+    await mouseDrag(page, at(4.25, -0.75), at(20, 20));
     await expect.poll(() => pos(page, "keyboard")).toEqual([5.3, 0, 3.3]);
 
     await page.getByRole("button", { name: "Undo" }).click();
-    expect(await pos(page, "keyboard")).toEqual([-4.25, 0, -0.75]);
+    expect(await pos(page, "keyboard")).toEqual([4.25, 0, -0.75]);
     await page.getByRole("button", { name: "Redo" }).click();
     expect(await pos(page, "keyboard")).toEqual([5.3, 0, 3.3]);
   });

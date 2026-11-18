@@ -10,7 +10,9 @@ import {
   initHistory,
   isInsideStage,
   isMovable,
+  backlineOverlap,
   moveItem,
+  serializeStageLayout,
   normalizeStageLayout,
   nudgeItem,
   performerRole,
@@ -32,6 +34,71 @@ describe("default layout", () => {
       expect(isMovable(item)).toBe(false);
     }
     expect(layout.items.filter((i) => i.kind === "performer")).toHaveLength(5);
+  });
+});
+
+describe("default layout — audience-facing sides", () => {
+  // Derive "audience right" from the camera instead of assuming a sign for X:
+  // right = forward × up, for every view the audience actually looks from.
+  const audienceRight = (view: "perspective" | "front") => {
+    const { position: p, target: t } = CAMERA_VIEWS[view];
+    const fx = t[0] - p[0];
+    const fz = t[2] - p[2];
+    return [-fz, 0, fx] as const; // forward × up(0,1,0)
+  };
+  const side = (id: string, view: "perspective" | "front") => {
+    const r = audienceRight(view);
+    const dot = find(layout, id).position[0] * r[0] + find(layout, id).position[2] * r[2];
+    return dot > 0 ? "right" : dot < 0 ? "left" : "center";
+  };
+
+  it.each(["perspective", "front"] as const)("from the %s view: bass left, guitar and keys right, vocal center", (view) => {
+    expect(side("member-bass", view)).toBe("left");
+    expect(side("bass", view)).toBe("left");
+    expect(side("member-guitar", view)).toBe("right");
+    expect(side("guitar", view)).toBe("right");
+    expect(side("member-keys", view)).toBe("right");
+    expect(side("keyboard", view)).toBe("right");
+    expect(find(layout, "member-vocal").position[0]).toBe(0);
+    expect(find(layout, "mic-vocal").position[0]).toBe(0);
+  });
+
+  it("keeps the fixed backline exactly where it was", () => {
+    expect(find(layout, "drums").position).toEqual([0, 0, -2.5]);
+    expect(find(layout, "amp-guitar").position).toEqual([-3.5, 0, -2.75]);
+    expect(find(layout, "amp-bass").position).toEqual([3.5, 0, -2.75]);
+    expect(find(layout, "amp-keys").position).toEqual([-5, 0, -2.75]);
+  });
+
+  it("has no item inside backline gear", () => {
+    for (const item of layout.items) expect(backlineOverlap(layout, item, item.position)).toBe(0);
+  });
+
+  it("round-trips through save/load with identical coordinates", () => {
+    const loaded = parseStageLayout(JSON.parse(serializeStageLayout(layout)));
+    expect(loaded.ok && loaded.layout.items).toEqual(layout.items);
+  });
+
+  it("does not rewrite a saved draft that still has the old arrangement", () => {
+    const oldDraft = { ...layout, items: layout.items.map((i) => (i.id === "member-bass" ? { ...i, position: [2.5, 0, 0.5] as [number, number, number] } : i)) };
+    const normalized = normalizeStageLayout(oldDraft, layout);
+    expect(find(normalized, "member-bass").position).toEqual([2.5, 0, 0.5]);
+    expect(validateAgainstReference(normalized, layout)).toEqual([]);
+  });
+});
+
+describe("backline collision guard", () => {
+  it("rejects moving an instrument into an amp", () => {
+    const amp = find(layout, "amp-bass").position;
+    expect(find(moveItem(layout, "guitar", [amp[0], 0, amp[2] + 0.4]), "guitar").position).toEqual(find(layout, "guitar").position);
+  });
+  it("rejects moving an instrument into the drum kit, but lets performers reach it", () => {
+    expect(find(moveItem(layout, "bass", [0.5, 0, -2]), "bass").position).toEqual(find(layout, "bass").position);
+    expect(find(moveItem(layout, "member-vocal", [0, 0, -1.5]), "member-vocal").position).toEqual([0, 0, -1.5]);
+  });
+  it("lets an item that already overlaps move out", () => {
+    const stuck = { ...layout, items: layout.items.map((i) => (i.id === "guitar" ? { ...i, position: [3.5, 0, -2.25] as [number, number, number] } : i)) };
+    expect(find(moveItem(stuck, "guitar", [3.5, 0, -1]), "guitar").position).toEqual([3.5, 0, -1]);
   });
 });
 
@@ -86,7 +153,7 @@ describe("movement", () => {
 
   it("snaps to the grid when asked and nudges by small steps", () => {
     expect(find(moveItem(layout, "mic-vocal", [0.37, 0, 1.12], { snap: true }), "mic-vocal").position).toEqual([0.25, 0, 1]);
-    expect(find(nudgeItem(layout, "bass", 0.25, 0), "bass").position).toEqual([2.75, 0, 1]);
+    expect(find(nudgeItem(layout, "bass", 0.25, 0), "bass").position).toEqual([-2.25, 0, 1]);
   });
 
   it("rotation wraps into [0, 2π)", () => {

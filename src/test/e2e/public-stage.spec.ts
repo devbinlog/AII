@@ -66,7 +66,7 @@ test.describe("Stage publish workflow (serial)", () => {
     await page.getByRole("button", { name: "Move downstage" }).click();
     await page.getByRole("button", { name: "Move downstage" }).click();
     const arranged = await posOf(page, "keyboard");
-    expect(arranged).toEqual([-4.25, 0, -0.25]);
+    expect(arranged).toEqual([4.25, 0, -0.25]);
 
     // Unsaved changes cannot be published
     await expect(page.getByText("Unsaved changes")).toBeVisible();

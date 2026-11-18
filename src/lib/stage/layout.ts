@@ -43,8 +43,25 @@ export function isInsideStage(item: StageItem, bounds: StageBounds = STAGE_BOUND
 }
 
 /**
+ * How far (meters) an item's footprint would sink into fixed backline gear (amps,
+ * drum kit) at `position`; 0 = clear. Performers may stand at the drum kit — the
+ * drummer sits there — but nothing may sit inside an amp.
+ */
+export function backlineOverlap(layout: StageLayout, item: StageItem, position: Vec3): number {
+  let worst = 0;
+  for (const other of layout.items) {
+    if (other.id === item.id || !ALWAYS_LOCKED.has(other.kind)) continue;
+    if (other.kind === "drums" && item.kind === "performer") continue;
+    const gap = Math.hypot(position[0] - other.position[0], position[2] - other.position[2]);
+    worst = Math.max(worst, FOOTPRINT[item.kind] + FOOTPRINT[other.kind] - gap);
+  }
+  return round(worst);
+}
+
+/**
  * Move an item to a floor position. Locked items are returned unchanged.
- * The result is clamped to the stage and optionally snapped to the grid.
+ * The result is clamped to the stage and optionally snapped to the grid; a move
+ * that would push the item into an amp or the drum kit is rejected.
  */
 export function moveItem(layout: StageLayout, id: string, target: Vec3, options: { snap?: boolean } = {}): StageLayout {
   const item = layout.items.find((i) => i.id === id);
@@ -52,6 +69,8 @@ export function moveItem(layout: StageLayout, id: string, target: Vec3, options:
   const raw: Vec3 = options.snap ? [snap(target[0]), 0, snap(target[2])] : target;
   const position = clampToStage(item.kind, raw);
   if (position[0] === item.position[0] && position[2] === item.position[2]) return layout;
+  // Never push an item deeper into fixed backline gear (an item already overlapping may move out).
+  if (backlineOverlap(layout, item, position) > backlineOverlap(layout, item, item.position) + 1e-6) return layout;
   return { ...layout, items: layout.items.map((i) => (i.id === id ? { ...i, position } : i)) };
 }
 

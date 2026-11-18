@@ -67,7 +67,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = "오류가 발생했습니다",
+  title = "Something went wrong",
   description,
   retry,
 }: {
@@ -93,7 +93,7 @@ export function ErrorState({
           onClick={retry}
           className="text-sm text-[var(--color-accent)] hover:underline"
         >
-          다시 시도
+          Try again
         </button>
       )}
     </div>

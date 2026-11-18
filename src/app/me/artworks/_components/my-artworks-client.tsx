@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/lib/utils/format";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -256,7 +257,7 @@ function ArtworkCard({ artwork, campaignSlug, onVisibilityChange, onDelete, isPe
             {artwork.title}
           </h3>
           <p className="text-xs" style={{ color: "var(--color-neutral-500)" }}>
-            {new Date(artwork.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            {formatDate(artwork.createdAt)}
             {" · "}
             {artwork.likeCount} like{artwork.likeCount !== 1 ? "s" : ""}
           </p>

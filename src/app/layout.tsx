@@ -60,7 +60,7 @@ export default async function RootLayout({
 }) {
   const initialSession = await getInitialSession();
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased flex flex-col min-h-screen`}
       >

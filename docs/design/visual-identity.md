@@ -40,7 +40,8 @@ Contrast ratios are computed (WCAG 2.x), not estimated.
 | `--aii-signal` | `#E44942` | Graphics, large text, **accent text on dark** | 4.79 on ink |
 | `--aii-signal-deep` | `#C2352F` | **Filled buttons/badges** (white text), accent text on paper | white 5.46 · on paper 4.76 |
 | `--aii-stone` | `#A7A5A0` | Borders; muted text **on dark only** | 7.67 on ink · **2.14 on paper → never text on paper** |
-| `--aii-stone-deep` | `#6B6964` | Muted text on paper | 4.77 |
+| `--aii-stone-mid` | `#85837E` | Quiet (subtle) text on Ink / Ink-2 | 4.99 · 4.68 |
+| `--aii-stone-deep` | `#666460` | Muted text on paper and paper-2 | 5.14 on Paper · 4.70 on Paper-2 (was `#6B6964`, 4.36 on Paper-2 — failed AA, fixed 2026-11-18) |
 | `--aii-iris` / `--aii-iris-deep` | `#6863DE` / `#514CC4` | Secondary accent (UI/large) / as text on paper | 4.1 / 5.75 |
 | `--stage-void` | `#08131F` | Stage background | paper 16.3 |
 | `--stage-cyan` | `#38D9F2` | Vocal, stage accent text, CTA fill (Void text) | 11.0 on void |
@@ -117,3 +118,11 @@ Selection: white `Outlines` on torso and head plus brighter opacity; instruments
 - Spatial labels can overlap when members line up front-to-back (e.g. front view); toggle exists, no collision avoidance yet.
 - `THREE.Clock` deprecation warning comes from @react-three/fiber internals.
 - No automated axe audit (would add a dependency); checks above are computed/manual + E2E.
+
+
+## 2026-11-18 — contrast and locale follow-up
+
+- `--color-fg-subtle` is only ever used for text, but resolved to Stone on Paper (2.14:1), `#55534f` in Studio (2.6:1) and neutral-600 in `.dark` (1.9:1). It now resolves per theme to the quietest shade that passes AA: Stone Deep on Paper, `--aii-stone-mid` in Studio, `#808080` in `.dark`. Stone remains a border colour.
+- `--aii-stone-deep` darkened `#6B6964 → #666460` so muted text also passes on Paper-2 (4.36 → 4.70).
+- Home and Explore no longer use Freefallers' `#e8192c` for platform chrome (kickers, verified marks, CTAs); it appears only on artist-owned surfaces (covers, artist panel, swatches) via `artist.branding`.
+- Display locale is explicit: `UI_LOCALE = "en-US"`, `DISPLAY_TIME_ZONE = "UTC"` in `src/lib/utils/format.ts`. Storage stays ISO 8601.

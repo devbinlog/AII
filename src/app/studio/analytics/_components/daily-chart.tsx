@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate, formatNumber } from "@/lib/utils/format";
 import { useState } from "react";
 
 /**
@@ -11,13 +12,13 @@ export function DailyChart({ data }: { data: { date: string; count: number }[] }
   const max = Math.max(1, ...data.map((d) => d.count));
   const peak = data.reduce((best, d, i) => (d.count > (data[best]?.count ?? -1) ? i : best), 0);
   const total = data.reduce((s, d) => s + d.count, 0);
-  const label = (d: { date: string }) => new Date(`${d.date}T00:00:00`).toLocaleDateString("en", { month: "short", day: "numeric" });
+  const label = (d: { date: string }) => formatDate(d.date, { month: "short", day: "numeric" });
 
   return (
     <figure className="flex flex-col gap-3">
       <figcaption className="flex items-baseline justify-between gap-3">
         <span className="text-sm text-[var(--color-fg-muted)]">Participants per day · last {data.length} days</span>
-        <span className="text-sm tabular-nums text-[var(--color-fg)]">{total.toLocaleString()} total</span>
+        <span className="text-sm tabular-nums text-[var(--color-fg)]">{formatNumber(total)} total</span>
       </figcaption>
       <div className="relative">
         <div className="flex h-44 items-end gap-[2px] border-b border-[var(--color-border-strong)]" role="list" aria-label="Participants per day">

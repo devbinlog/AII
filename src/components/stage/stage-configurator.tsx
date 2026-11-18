@@ -20,6 +20,7 @@ import {
 } from "@/lib/stage";
 import { studioFetch, describeDetails } from "@/components/studio/client-api";
 import { FormMessage } from "@/components/studio/ui";
+import { formatTime } from "@/lib/utils/format";
 
 // three.js only runs in the browser; keep it out of the server bundle and initial page JS.
 const StageCanvas = dynamic(() => import("./stage-canvas").then((m) => m.StageCanvas), {
@@ -204,7 +205,7 @@ export function StageConfigurator({
   const members = layout.items.filter((i) => i.kind === "performer");
   const gear = layout.items.filter((i) => i.kind !== "performer");
   const role = selected ? performerRole(selected) : null;
-  const savedTime = lastSaved ? new Date(lastSaved).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" }) : null;
+  const savedTime = lastSaved ? formatTime(lastSaved) : null;
 
   const itemButton = (item: StageItem) => {
     const r = performerRole(item);

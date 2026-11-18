@@ -9,7 +9,7 @@
   :root {
     /* --- AII Core Palette (platform identity) ---
        Contrast (WCAG 2.x, computed): Ink/Paper 16.4 · Signal Deep on Paper 4.76 ·
-       white on Signal Deep 5.46 · Signal on Ink 4.79 · Stone Deep on Paper 4.77 ·
+       white on Signal Deep 5.46 · Signal on Ink 4.79 · Stone Deep on Paper 5.14, on Paper-2 4.70 ·
        Stone on Ink 7.67. Stone on Paper is 2.14 → borders only, never text. */
     --aii-ink: #101114;
     --aii-ink-2: #17181c;          /* raised dark surface */
@@ -19,7 +19,8 @@
     --aii-signal-deep: #c2352f;    /* fills with white text, accent text on paper */
     --aii-signal-press: #a82c27;
     --aii-stone: #a7a5a0;          /* borders; muted text on dark only */
-    --aii-stone-deep: #6b6964;     /* muted text on paper */
+    --aii-stone-mid: #85837e;      /* quiet text on Ink / Ink-2 (4.99 / 4.68) */
+    --aii-stone-deep: #666460;     /* muted text on paper AND paper-2 (was #6b6964: 4.36:1 on paper-2) */
     --aii-iris: #6863de;           /* secondary accent: UI/large only (4.1:1) */
     --aii-iris-deep: #514cc4;      /* iris as text on paper (5.75:1) */
 
@@ -59,7 +60,9 @@
     --color-bg-secondary: var(--aii-paper-2);
     --color-fg: var(--aii-ink);
     --color-fg-muted: var(--aii-stone-deep);
-    --color-fg-subtle: var(--aii-stone);
+    /* fg-subtle is TEXT, so it must pass AA: on paper there is no quieter passing shade
+       than Stone Deep — hierarchy comes from size/weight. Stone stays for borders. */
+    --color-fg-subtle: var(--aii-stone-deep);
     --color-border: #d9d5cc;
     --color-border-strong: var(--aii-stone);
     /* Fill color (buttons, badges) — white text on it passes AA */
@@ -157,7 +160,7 @@
     --color-bg-secondary: var(--color-neutral-900);
     --color-fg: var(--color-neutral-50);
     --color-fg-muted: var(--color-neutral-400);
-    --color-fg-subtle: var(--color-neutral-600);
+    --color-fg-subtle: #808080; /* 5.01 on neutral-950 (was neutral-600, 1.9) */
     --color-border: var(--color-neutral-800);
     --color-border-strong: var(--color-neutral-600);
     --color-accent-fg: var(--aii-signal);
@@ -173,7 +176,7 @@
     --color-bg-secondary: var(--aii-ink-2);
     --color-fg: var(--aii-paper);
     --color-fg-muted: var(--aii-stone);
-    --color-fg-subtle: #55534f;
+    --color-fg-subtle: var(--aii-stone-mid); /* was #55534f, 2.6 on Ink */
     --color-border: #24262b;
     --color-border-strong: #383a40;
     --color-accent-fg: var(--aii-signal);

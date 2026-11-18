@@ -8,7 +8,7 @@ import Link from "next/link";
 import { getRepository } from "@/lib/repository";
 import { isPublicCampaign, isPublicExperience, isPublicRelease } from "@/lib/public-visibility";
 import { Badge } from "@/components/ui/badge";
-import { formatCount, formatDate, formatDuration } from "@/lib/utils/format";
+import { formatCount, formatDate, formatDuration, formatNumber } from "@/lib/utils/format";
 import type { Release, Experience } from "@/types";
 
 interface PageProps {
@@ -251,7 +251,7 @@ export default async function ArtistProfilePage({ params }: PageProps) {
             </div>
             <div>
               <p className="font-mono text-3xl font-bold" style={{ color: "#f5f5f0" }}>
-                {experiences.reduce((s, e) => s + e.totalPlayCount, 0).toLocaleString()}
+                {formatNumber(experiences.reduce((s, e) => s + e.totalPlayCount, 0))}
               </p>
               <p className="caption-label mt-0.5" style={{ color: "rgba(245,245,240,0.4)" }}>
                 Experience Plays

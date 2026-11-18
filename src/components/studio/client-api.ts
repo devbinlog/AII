@@ -2,6 +2,9 @@
 
 // Thin client for /api/studio/* — returns a discriminated result instead of throwing.
 
+/** Fired on window after any successful Studio mutation, so shell widgets can refresh. */
+export const STUDIO_CHANGED_EVENT = "aii:studio-changed";
+
 export type StudioResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number; message: string; details?: unknown };
@@ -26,6 +29,7 @@ export async function studioFetch<T = Record<string, unknown>>(
         details: json.error?.details,
       };
     }
+    if (method !== "GET" && typeof window !== "undefined") window.dispatchEvent(new Event(STUDIO_CHANGED_EVENT));
     return { ok: true, data: json };
   } catch {
     return { ok: false, status: 0, message: "Network error — is the dev server running?" };

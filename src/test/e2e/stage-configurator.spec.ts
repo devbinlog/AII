@@ -258,3 +258,37 @@ test.describe("3D Stage — label collisions", () => {
     await expect.poll(async () => (await boxes(page)).map((b) => b.id)).toEqual(["drums"]);
   });
 });
+
+test.describe("Studio sidebar", () => {
+  test.beforeEach(({}, info) => {
+    test.skip(info.project.name !== "edge", "touches global publication state; desktop sidebar");
+  });
+
+  test("shows the artist card and live status, and updates after publishing without a reload", async ({ page }) => {
+    await openStage(page);
+    const sidebar = page.getByRole("complementary", { name: "Studio sidebar" });
+    await expect(sidebar.getByText("Freefallers", { exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "View public profile →" })).toHaveAttribute("href", "/artists/freefallers");
+    const stageRow = sidebar.getByRole("region", { name: "Live now" }).getByRole("link", { name: /^Stage/ });
+    await expect(stageRow).toBeVisible();
+
+    // Make a saved change, publish, and the sidebar reflects the new version immediately
+    await page.getByRole("button", { name: /^Vocal/ }).first().click();
+    await page.getByRole("button", { name: "Move downstage" }).click();
+    await page.getByRole("button", { name: "Save layout" }).click();
+    await expect(page.getByRole("status").first()).toContainText("Layout saved");
+    await page.getByRole("button", { name: /Publish (stage|new version)/ }).click();
+    const published = await page.getByRole("status").first().textContent();
+    const v = published?.match(/v(\d+)/)?.[1];
+    expect(v).toBeTruthy();
+    await expect(stageRow).toContainText(`Public v${v}`);
+  });
+
+  test("amps sit behind their players (audience view)", async ({ page }) => {
+    await openStage(page);
+    await page.getByRole("button", { name: "Default layout" }).click();
+    expect((await pos(page, "amp-bass"))[0]).toBeLessThan(0);
+    expect((await pos(page, "amp-guitar"))[0]).toBeGreaterThan(0);
+    expect((await pos(page, "amp-keys"))[0]).toBeGreaterThan(0);
+  });
+});

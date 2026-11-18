@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { EditableParameter } from "@/types/domain";
 
 // ============================================================
@@ -61,6 +62,11 @@ export function ParameterEditor({
   const isDefault =
     JSON.stringify(value) === JSON.stringify(param.defaultValue);
 
+  // Controls are server-rendered but only work once hydrated. Until then they are
+  // visibly disabled, so a drag during hydration is never silently reset.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   return (
     <div
       className="flex flex-col gap-2 pb-4"
@@ -91,6 +97,7 @@ export function ParameterEditor({
         </button>
       </div>
 
+      <fieldset disabled={!hydrated} className="contents" aria-busy={!hydrated}>
       {/* Control by type */}
       {param.type === "color" && (
         <ColorInput
@@ -122,6 +129,7 @@ export function ParameterEditor({
           onChange={handleChange}
         />
       )}
+      </fieldset>
 
       {/* Meta info */}
       <p

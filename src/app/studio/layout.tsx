@@ -31,7 +31,7 @@ export default async function StudioLayout({ children }: { children: React.React
     <div className="studio flex-1 bg-[var(--color-bg)] text-[var(--color-fg)]">
       {showShell ? (
         <div className="max-w-[1440px] mx-auto px-4 md:px-6 py-6 md:py-8 flex flex-col md:flex-row gap-6 md:gap-8">
-          <aside className="md:w-52 shrink-0 md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto flex flex-col gap-5" aria-label="Studio sidebar">
+          <aside className="studio-sidebar md:w-52 shrink-0 md:self-start flex flex-col gap-5" aria-label="Studio sidebar">
             <Link href="/studio" className="hidden md:block text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-accent-fg)]">
               Artist Studio
             </Link>

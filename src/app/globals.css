@@ -321,3 +321,13 @@
     transition: all var(--duration-fast) var(--ease-default);
   }
 }
+
+/* Studio sidebar: never its own scroll area (a scrollbar would cover its right-aligned
+   values). It stays pinned only on screens tall enough to show all of it; shorter
+   screens scroll it with the page. */
+@media (min-width: 768px) and (min-height: 64rem) {
+  .studio-sidebar {
+    position: sticky;
+    top: 5rem;
+  }
+}

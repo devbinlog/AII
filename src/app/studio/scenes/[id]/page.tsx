@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
@@ -20,10 +21,12 @@ export default async function StudioScenePage({ params }: { params: Promise<{ id
   const { assets } = await repo.media.listByArtist(access.artist.id, { page: 1, pageSize: 200, type: "image" });
 
   return (
-    <SceneEditor
-      scene={scene}
-      images={assets.map((a) => ({ id: a.id, filename: a.filename }))}
-      accent={access.artist.branding.primaryColor}
-    />
+    <HydrationGate>
+      <SceneEditor
+        scene={scene}
+        images={assets.map((a) => ({ id: a.id, filename: a.filename }))}
+        accent={access.artist.branding.primaryColor}
+      />
+    </HydrationGate>
   );
 }

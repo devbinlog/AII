@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -34,7 +35,9 @@ export default async function StudioReleasePage({ params }: { params: Promise<{ 
           </>
         }
       />
-      <ReleaseEditor release={release} canPublish={access.can("release.publish")} />
+      <HydrationGate>
+        <ReleaseEditor release={release} canPublish={access.can("release.publish")} />
+      </HydrationGate>
     </>
   );
 }

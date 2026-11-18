@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { getStudioAccess } from "@/lib/studio/session";
@@ -46,7 +47,9 @@ export default async function StudioCampaignsPage() {
           {experiences.length === 0 ? (
             <p className="text-sm text-[var(--color-fg-muted)]">Create an experience first.</p>
           ) : (
-            <CreateCampaignForm experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))} />
+            <HydrationGate>
+              <CreateCampaignForm experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))} />
+            </HydrationGate>
           )}
         </Panel>
       </div>

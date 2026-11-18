@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
@@ -26,17 +27,19 @@ export default async function StudioExperiencePage({ params }: { params: Promise
   ]);
 
   return (
-    <ExperienceEditor
-      experience={experience}
-      scenes={scenes.map((s) => ({
-        id: s.id,
-        name: s.name,
-        objects: s.schema.objects.map((o) => ({ id: o.id, name: o.name, type: o.data.type })),
-      }))}
-      releases={releases.map((r) => ({ id: r.id, title: r.title }))}
-      campaigns={campaigns.filter((c) => c.experienceId === id).map((c) => ({ id: c.id, title: c.title, slug: c.slug, status: c.status }))}
-      versions={versions.map((v) => ({ id: v.id, version: v.version, publishedAt: v.publishedAt, sceneCount: v.snapshot.scenes.length }))}
-      canPublish={access.can("experience.publish")}
-    />
+    <HydrationGate>
+      <ExperienceEditor
+        experience={experience}
+        scenes={scenes.map((s) => ({
+          id: s.id,
+          name: s.name,
+          objects: s.schema.objects.map((o) => ({ id: o.id, name: o.name, type: o.data.type })),
+        }))}
+        releases={releases.map((r) => ({ id: r.id, title: r.title }))}
+        campaigns={campaigns.filter((c) => c.experienceId === id).map((c) => ({ id: c.id, title: c.title, slug: c.slug, status: c.status }))}
+        versions={versions.map((v) => ({ id: v.id, version: v.version, publishedAt: v.publishedAt, sceneCount: v.snapshot.scenes.length }))}
+        canPublish={access.can("experience.publish")}
+      />
+    </HydrationGate>
   );
 }

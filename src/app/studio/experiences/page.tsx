@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { getStudioAccess } from "@/lib/studio/session";
@@ -50,7 +51,9 @@ export default async function StudioExperiencesPage() {
           )}
         </Panel>
         <Panel title="New experience">
-          <CreateExperienceForm releases={releases.map((r) => ({ id: r.id, title: r.title }))} />
+          <HydrationGate>
+            <CreateExperienceForm releases={releases.map((r) => ({ id: r.id, title: r.title }))} />
+          </HydrationGate>
         </Panel>
       </div>
     </>

@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { getStudioAccess } from "@/lib/studio/session";
@@ -27,17 +28,19 @@ export default async function StudioStagePage() {
         title="Stage configurator"
         description="Arrange hologram members and instruments on stage. Amplifiers and drums are fixed to the backline."
       />
-      <StageConfigurator
-        initialLayout={saved ? normalizeStageLayout(saved, referenceFor(saved, access.artist.id)) : defaultStageLayout(access.artist.id)}
-        savedAt={saved?.updatedAt ?? null}
-        canEdit={access.can("content.edit")}
-        publish={{
-          artistSlug: access.artist.slug,
-          canPublish: access.can("stage.publish"),
-          publishedVersion: published ? { id: published.id, version: published.version, publishedAt: published.publishedAt } : null,
-          versionCount: versions.length,
-        }}
-      />
+      <HydrationGate>
+        <StageConfigurator
+          initialLayout={saved ? normalizeStageLayout(saved, referenceFor(saved, access.artist.id)) : defaultStageLayout(access.artist.id)}
+          savedAt={saved?.updatedAt ?? null}
+          canEdit={access.can("content.edit")}
+          publish={{
+            artistSlug: access.artist.slug,
+            canPublish: access.can("stage.publish"),
+            publishedVersion: published ? { id: published.id, version: published.version, publishedAt: published.publishedAt } : null,
+            versionCount: versions.length,
+          }}
+        />
+      </HydrationGate>
     </>
   );
 }

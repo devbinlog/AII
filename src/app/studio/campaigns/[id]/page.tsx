@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getRepository } from "@/lib/repository";
@@ -20,10 +21,12 @@ export default async function StudioCampaignPage({ params }: { params: Promise<{
   const { experiences } = await repo.experience.listByArtist(access.artist.id, { page: 1, pageSize: 200 });
 
   return (
-    <CampaignEditor
-      campaign={campaign}
-      experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))}
-      canPublish={access.can("campaign.publish")}
-    />
+    <HydrationGate>
+      <CampaignEditor
+        campaign={campaign}
+        experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))}
+        canPublish={access.can("campaign.publish")}
+      />
+    </HydrationGate>
   );
 }

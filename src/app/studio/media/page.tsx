@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { getStudioAccess } from "@/lib/studio/session";
@@ -16,7 +17,9 @@ export default async function StudioMediaPage() {
   return (
     <>
       <StudioPageHeader eyebrow="Media" title="Media manager" description="Images, audio, video, fonts and 3D models for your scenes." />
-      <MediaManager initialAssets={assets} canDelete={access.can("media.delete")} />
+      <HydrationGate>
+        <MediaManager initialAssets={assets} canDelete={access.can("media.delete")} />
+      </HydrationGate>
     </>
   );
 }

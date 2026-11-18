@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { HydrationGate } from "@/components/ui/hydration-gate";
 import type { Metadata } from "next";
 import { getRepository } from "@/lib/repository";
 import { getStudioAccess } from "@/lib/studio/session";
@@ -47,7 +48,9 @@ export default async function StudioScenesPage() {
           )}
         </Panel>
         <Panel title="New scene">
-          <CreateSceneForm />
+          <HydrationGate>
+            <CreateSceneForm />
+          </HydrationGate>
         </Panel>
       </div>
     </>

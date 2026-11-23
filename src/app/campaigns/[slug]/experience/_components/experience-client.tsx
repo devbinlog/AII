@@ -299,7 +299,9 @@ export function ExperienceClient({
 
     if (!hasStarted) {
       setHasStarted(true);
-      rt.play();
+      // A second click/Space before the re-render still sees hasStarted=false;
+      // play() is not idempotent (it starts another frame loop), so only start once.
+      if (rt.getSnapshot().status !== "playing") rt.play();
       return;
     }
 
@@ -416,10 +418,15 @@ export function ExperienceClient({
                   >
                     DEMO MODE — Simulated Audio
                   </p>
+                  {/* Server-rendered: natively disabled until the runtime exists (set in an
+                      effect, so also after hydration). Before that a click had no handler, or
+                      hit handlePlayPause's `if (!rt) return`, and was silently lost. */}
                   <button
                     type="button"
                     onClick={handlePlayPause}
-                    className="flex items-center gap-3 px-8 py-4 rounded-full text-sm font-semibold transition-opacity hover:opacity-80 mx-auto"
+                    disabled={!runtimeReady}
+                    aria-busy={!runtimeReady}
+                    className="flex items-center gap-3 px-8 py-4 rounded-full text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60 disabled:cursor-wait mx-auto"
                     style={{
                       backgroundColor: "var(--color-accent)",
                       color: "#fff",

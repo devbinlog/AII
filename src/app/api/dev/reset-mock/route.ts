@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 /**
  * Dev/E2E only: reset the in-memory mock store to its fixtures (sessions kept).
- * Unavailable in production and outside MOCK_ONLY mode (middleware also blocks it).
+ * Unavailable in production and outside MOCK_ONLY mode (src/proxy.ts also blocks it).
  */
 export async function POST() {
   const mode = process.env["NEXT_PUBLIC_DATA_MODE"] ?? "MOCK_ONLY";

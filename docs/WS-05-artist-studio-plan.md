@@ -139,7 +139,7 @@ Requirements mapping:
 ## 6. Known items to carry into WS-05
 
 - Next.js 16.4.3 is flagged by `npm audit` (GHSA-mfr8-8qww-v76h, fixed in ≥16.4.5) — upgrade pending approval.
-- `src/middleware.ts` uses the deprecated `middleware` convention (Next 16 prefers `proxy`); works today.
+- ~~`src/middleware.ts` uses the deprecated `middleware` convention~~ — migrated to `src/proxy.ts` (2026-11-23).
 - One report immediately sets an artwork to `flagged` (hidden from gallery). Consider a threshold or moderation queue before real users.
 - HUD Play button on the experience page stays in the tab order behind the pre-play overlay.
 - Firefox / WebKit E2E have not run on Windows (Playwright browser download blocked by TLS inspection); run them on macOS or CI.

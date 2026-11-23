@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Engine Playground — development only.
- * Blocked by middleware in production; this guard is defense in depth.
+ * Blocked by src/proxy.ts in production; this guard is defense in depth.
  */
 export default function DevEnginePage() {
   if (process.env.NODE_ENV === "production") {

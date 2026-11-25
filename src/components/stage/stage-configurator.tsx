@@ -353,8 +353,15 @@ export function StageConfigurator({
             <span className="text-xs text-[var(--color-fg-muted)]">An artist admin publishes the stage.</span>
           )}
         </div>
-        {publish.canPublish && (dirty || !lastSaved) && (
-          <p className="w-full text-xs text-[var(--color-fg-muted)]">Only the saved layout can be published. Save your changes first.</p>
+        {publish.canPublish && (
+          // Always laid out (only shown/hidden) so the first edit does not push the 3D viewport
+          // down mid-drag.
+          <p
+            className={`w-full text-xs text-[var(--color-fg-muted)] ${dirty || !lastSaved ? "" : "invisible"}`}
+            aria-hidden={dirty || !lastSaved ? undefined : true}
+          >
+            Only the saved layout can be published. Save your changes first.
+          </p>
         )}
       </div>
       <FormMessage result={result} />

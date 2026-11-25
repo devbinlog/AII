@@ -52,7 +52,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
+    // Start Next directly (not via `npm run dev`): npm → cmd → node wrappers leave the
+    // dev server orphaned on Windows when only the wrapper is killed, and an orphaned
+    // server later fails with EPIPE. A single node process tree exits with its parent.
+    command: "node node_modules/next/dist/bin/next dev --turbopack",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env["CI"],
     timeout: 120 * 1000,

@@ -299,7 +299,8 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
                 <span className="text-[var(--color-fg-muted)]">Nothing selected. Click an object on the canvas or a layer below.</span>
               )}
             </p>
-            <p data-testid="canvas-announcer" className="sr-only" role="status" aria-live="polite">{announcement}</p>
+            {/* aria-live without role="status": the save result is the page's one status message. */}
+            <p data-testid="canvas-announcer" className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
           </div>
 
           <section aria-label="Objects" className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">

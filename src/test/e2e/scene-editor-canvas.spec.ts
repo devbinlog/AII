@@ -294,6 +294,32 @@ test.describe("Scene editor canvas", () => {
     await page.keyboard.up("Shift");
     await expect(field(page, "box_a", "rot")).toHaveValue("45");
     await expect(page.getByTestId("selection-readout")).toContainText("45°");
+
+    // Resize + rotation survive save and reload (draft persistence)
+    await page.getByRole("button", { name: "Save scene" }).click();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    expect((await readScene(page, id)).schema.objects.find((o) => o.id === "box_a")!.transform).toMatchObject({ width: w, height: 240, rotation: 45, x });
+    await page.reload();
+    await expect(page.locator("[data-hydrated]")).toBeAttached();
+    await page.getByRole("button", { name: /^Box A/ }).click();
+    await expect(field(page, "box_a", "w")).toHaveValue(String(w));
+    await expect(field(page, "box_a", "rot")).toHaveValue("45");
+  });
+
+  test("a new edit after undo clears redo", async ({ page }) => {
+    const { id } = await createScene(page, `WS06 redo ${Date.now()}`);
+    await openEditor(page, id);
+    const s = await stage(page);
+    await page.mouse.click(s.at(600, 400).x, s.at(600, 400).y);
+    await page.keyboard.press("ArrowRight");
+    await expect(field(page, "box_a", "x")).toHaveValue("601");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("button", { name: "Redo" })).toBeEnabled();
+    const s2 = await stage(page);
+    await page.mouse.click(s2.at(600, 400).x, s2.at(600, 400).y); // re-focus the canvas (a click alone edits nothing)
+    await page.keyboard.press("ArrowDown");
+    await expect(field(page, "box_a", "y")).toHaveValue("401");
+    await expect(page.getByRole("button", { name: "Redo" })).toBeDisabled();
   });
 
   test("grid snap and alignment guides", async ({ page }) => {
@@ -389,5 +415,66 @@ test.describe("Scene editor canvas — touch", () => {
     expect(x).toBeGreaterThan(700);
     // The page did not scroll instead of dragging
     expect(await page.evaluate(() => window.scrollX)).toBe(0);
+  });
+
+  test("touch: unselected objects are only selected; empty canvas lets the page scroll; cancel restores", async ({ page, browserName }, testInfo) => {
+    test.skip(browserName !== "chromium" || !testInfo.project.use.hasTouch, "CDP touch input: Chromium touch projects only");
+    await signIn(page);
+    const { id } = await createScene(page, `WS06 touch2 ${Date.now()}`);
+    await openEditor(page, id);
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async (from: { x: number; y: number }, to: { x: number; y: number }, end: "touchEnd" | "touchCancel" = "touchEnd") => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: from.x + ((to.x - from.x) * i) / 10, y: from.y + ((to.y - from.y) * i) / 10 }] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: end, touchPoints: [] });
+    };
+
+    // Box B is not selected (Box A is by default): dragging a finger across it neither moves nor selects it…
+    let s = await stage(page);
+    await swipe(s.at(1400, 700), { x: s.at(1400, 700).x + 60, y: s.at(1400, 700).y });
+    await expect(selection(page)).toHaveAttribute("data-object-id", "box_a");
+    // …a tap selects it.
+    await page.touchscreen.tap(s.at(1400, 700).x, s.at(1400, 700).y);
+    await expect(selection(page)).toHaveAttribute("data-object-id", "box_b");
+    await expect(field(page, "box_b", "x")).toHaveValue("1400");
+
+    // A vertical swipe that starts on empty canvas scrolls the page instead of editing.
+    s = await stage(page);
+    const before = await page.evaluate(() => window.scrollY);
+    const empty = s.at(1850, 1000);
+    await swipe(empty, { x: empty.x, y: empty.y - 220 });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    await expect(selection(page)).toHaveAttribute("data-object-id", "box_b"); // scrolling did not deselect
+    await expect(field(page, "box_b", "x")).toHaveValue("1400");
+
+    // A touch drag on the selected object that the browser cancels is rolled back.
+    s = await stage(page);
+    const p = s.at(1400, 700);
+    await swipe(p, { x: p.x - 80, y: p.y }, "touchCancel");
+    await expect(field(page, "box_b", "x")).toHaveValue("1400");
+    await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+  });
+});
+
+test.describe("Scene editor isolation and access", () => {
+  test("the fan experience has no editor layer", async ({ page }) => {
+    await page.goto("/campaigns/moonwave-fan-artwork/experience");
+    await expect(page.locator("canvas").first()).toBeAttached();
+    await expect(page.locator("[data-scene-canvas]")).toHaveCount(0);
+    await expect(page.getByTestId("scene-selection")).toHaveCount(0);
+  });
+
+  test("scene editor and its API stay closed to anonymous visitors and fans", async ({ page }) => {
+    await page.goto("/studio/scenes/scn_001");
+    await expect(page).toHaveURL(/\/login\?redirect=%2Fstudio%2Fscenes%2Fscn_001/);
+    const res = await page.request.post("/api/auth/signin", { data: { email: "fan1@example.com", password: "demo" } });
+    expect(res.ok()).toBe(true);
+    await page.goto("/studio/scenes/scn_001");
+    await expect(page.getByRole("heading", { name: /don.t have access to Artist Studio/i })).toBeVisible();
+    await expect(page.locator("[data-scene-canvas]")).toHaveCount(0);
+    const put = await page.request.put("/api/studio/scenes/scn_001", { data: { name: "hijack" } });
+    expect(put.status()).toBe(403);
   });
 });

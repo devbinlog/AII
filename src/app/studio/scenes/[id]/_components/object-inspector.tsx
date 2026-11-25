@@ -166,8 +166,13 @@ export function ObjectInspector({ object, patch, images }: { object: SceneObject
         </fieldset>
       )}
 
-      <fieldset className="grid grid-cols-2 gap-2">
+      <fieldset className="grid grid-cols-2 gap-2 disabled:opacity-60" disabled={object.locked} aria-describedby={object.locked ? `${p}-locked` : undefined}>
         <legend className="mb-2 text-xs font-mono uppercase tracking-widest text-[var(--color-fg-muted)]">Transform</legend>
+        {object.locked && (
+          <p id={`${p}-locked`} className="col-span-2 text-xs text-[var(--color-fg-muted)]">
+            Locked. Unlock the layer to move, resize or rotate it.
+          </p>
+        )}
         <NumberField id={`${p}-x`} label="X" value={t.x} onChange={(v) => setT("x", v)} />
         <NumberField id={`${p}-y`} label="Y" value={t.y} onChange={(v) => setT("y", v)} />
         <NumberField id={`${p}-w`} label="Width" value={t.width} min={0} onChange={(v) => setT("width", v)} />

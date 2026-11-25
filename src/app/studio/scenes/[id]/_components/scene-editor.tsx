@@ -13,14 +13,24 @@ import {
   reorderSceneObject,
   type NewObjectKind,
 } from "@/lib/studio/scene-objects";
-import { ScenePreview, type ManualAudio } from "./scene-preview";
+import { localBox, nudgeTransform } from "@/lib/studio/scene-geometry";
+import { measureSceneText } from "@/lib/studio/text-measure";
+import { ScenePreview, type ManualAudio, type ScenePreviewEditor } from "./scene-preview";
 import { ObjectInspector } from "./object-inspector";
 import { InteractionBuilder } from "./interaction-builder";
-import type { Scene, SceneObject, SceneSchema } from "@/types";
+import type { Scene, SceneObject, SceneSchema, SceneTransform } from "@/types";
 
 type Tab = "objects" | "interactions" | "scene";
 const HISTORY_LIMIT = 100;
 const COALESCE_MS = 700;
+const GRID_SIZES = [10, 20, 40, 80] as const;
+
+/** Canvas edit keys apply only when focus is on the canvas, a layer row, or nowhere in particular. */
+function isCanvasKeyTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return true;
+  if (target === document.body || target === document.documentElement) return true;
+  return target.closest("[data-scene-canvas], [data-layer-select]") !== null;
+}
 
 interface History {
   past: SceneSchema[];
@@ -72,6 +82,10 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
   const [manualAudio, setManualAudio] = useState<ManualAudio | null>(null);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; details?: string[] } | null>(null);
+  const [grid, setGrid] = useState<number | null>(null);
+  const [gridSize, setGridSize] = useState<number>(20);
+  const [guides, setGuides] = useState(true);
+  const [announcement, setAnnouncement] = useState("");
 
   const dirty = JSON.stringify({ s: schema, n: name }) !== savedSnapshot;
 
@@ -118,6 +132,79 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
     },
     [edit, selectedId]
   );
+
+  const commitTransform = useCallback(
+    (id: string, transform: SceneTransform) => {
+      edit((s) => ({
+        ...s,
+        objects: s.objects.map((o) => (o.id === id && !o.locked ? { ...o, transform, updatedAt: new Date().toISOString() } : o)),
+      }));
+    },
+    [edit]
+  );
+
+  /** Select from the canvas or the layer list, announcing the change to screen readers. */
+  const select = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      const o = id ? schema.objects.find((x) => x.id === id) : undefined;
+      setAnnouncement(o ? `Selected ${o.name}${o.locked ? ", locked" : ""}` : "Selection cleared");
+    },
+    [schema.objects]
+  );
+
+  const previewEditor: ScenePreviewEditor = useMemo(
+    () => ({ selectedId, onSelect: select, onCommit: commitTransform, grid, guides }),
+    [selectedId, select, commitTransform, grid, guides]
+  );
+
+  // Canvas keyboard commands: arrows nudge (Shift x10), Delete/Backspace removes, Escape clears the selection.
+  // Text fields, selects and other controls keep their own keys (see isCanvasKeyTarget).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || !isCanvasKeyTarget(e.target)) return;
+      const obj = selectedId ? schema.objects.find((o) => o.id === selectedId) : undefined;
+      if (e.key === "Escape") {
+        if (selectedId) {
+          e.preventDefault();
+          setSelectedId(null);
+          setAnnouncement("Selection cleared");
+        }
+        return;
+      }
+      const arrows: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      const dir = arrows[e.key];
+      const isDelete = e.key === "Delete" || e.key === "Backspace";
+      if (!obj || (!dir && !isDelete)) return;
+      e.preventDefault();
+      if (obj.locked) {
+        setAnnouncement(`${obj.name} is locked`);
+        return;
+      }
+      if (dir) {
+        const stepSize = e.shiftKey ? 10 : 1;
+        const box = localBox(obj, measureSceneText);
+        const scene = { width: schema.canvasWidth, height: schema.canvasHeight };
+        edit(
+          (s) => ({
+            ...s,
+            objects: s.objects.map((o) =>
+              o.id === obj.id
+                ? { ...o, transform: nudgeTransform(o.transform, box, dir[0] * stepSize, dir[1] * stepSize, scene), updatedAt: new Date().toISOString() }
+                : o
+            ),
+          }),
+          `nudge:${obj.id}`
+        );
+      } else {
+        edit((s) => removeSceneObject(s, obj.id));
+        setSelectedId(null);
+        setAnnouncement(`${obj.name} deleted`);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [edit, schema, selectedId]);
 
   function addObject(kind: NewObjectKind) {
     const obj = createSceneObject(kind, schema, { accent, ...(kind === "image" && images[0] ? { assetId: images[0].id } : {}) });
@@ -174,7 +261,46 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4 min-w-0">
-          <ScenePreview schema={schema} manualAudio={manualAudio} />
+          <ScenePreview schema={schema} manualAudio={manualAudio} editor={previewEditor} />
+          <div className="-mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--color-fg-muted)]">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={grid !== null} onChange={(e) => setGrid(e.target.checked ? gridSize : null)} />
+              Snap to grid
+            </label>
+            <label htmlFor="scene-grid-size" className="flex items-center gap-1.5">
+              <span className="sr-only">Grid size</span>
+              <select
+                id="scene-grid-size"
+                value={gridSize}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setGridSize(v);
+                  if (grid !== null) setGrid(v);
+                }}
+                className="h-7 bg-[var(--color-bg)] border border-[var(--color-border)] px-1 font-mono text-[var(--color-fg)]"
+              >
+                {GRID_SIZES.map((g) => (
+                  <option key={g} value={g}>{g} units</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={guides} onChange={(e) => setGuides(e.target.checked)} />
+              Alignment guides
+            </label>
+            <span className="hidden md:inline">Alt: drag without snapping · Shift: keep proportions / snap rotation</span>
+            <p data-testid="selection-readout" className="w-full font-mono tabular-nums text-[var(--color-fg)]">
+              {selected ? (
+                <>
+                  {selected.name} · X {selected.transform.x} · Y {selected.transform.y} · {selected.transform.width}×{selected.transform.height} · {selected.transform.rotation}°
+                  {selected.locked && <span className="ml-2 uppercase tracking-widest text-[var(--color-fg-muted)]">Locked</span>}
+                </>
+              ) : (
+                <span className="text-[var(--color-fg-muted)]">Nothing selected. Click an object on the canvas or a layer below.</span>
+              )}
+            </p>
+            <p data-testid="canvas-announcer" className="sr-only" role="status" aria-live="polite">{announcement}</p>
+          </div>
 
           <section aria-label="Objects" className="border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-[var(--color-border)]">
@@ -200,29 +326,45 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
               <ul className="divide-y divide-[var(--color-border)]">
                 {sortedObjects.map((o) => (
                   <li key={o.id} className={`flex items-center gap-2 px-3 py-1.5 ${o.id === selectedId ? "bg-white/[0.05]" : ""}`}>
-                    <button type="button" onClick={() => setSelectedId(o.id)} aria-pressed={o.id === selectedId} className="flex-1 min-w-0 text-left py-1">
+                    <button type="button" data-layer-select="" onClick={() => select(o.id)} aria-pressed={o.id === selectedId} className="flex-1 min-w-0 text-left py-1">
                       <span className={`block truncate text-sm ${o.visible ? "" : "text-[var(--color-fg-subtle)] line-through"}`}>{o.name}</span>
                       <span className="block text-[10px] font-mono uppercase text-[var(--color-fg-muted)]">
                         {o.data.type}
                         {schema.interactions.some((m) => m.objectId === o.id) ? " · reactive" : ""}
+                        {o.locked ? " · locked" : ""}
                       </span>
                     </button>
                     <div className="flex items-center gap-0.5 text-xs">
                       {[
                         { label: o.visible ? "Hide" : "Show", run: () => edit((s) => ({ ...s, objects: s.objects.map((x) => (x.id === o.id ? { ...x, visible: !x.visible } : x)) })) },
+                        {
+                          label: o.locked ? "Unlock" : "Lock",
+                          pressed: o.locked,
+                          run: () => edit((s) => ({ ...s, objects: s.objects.map((x) => (x.id === o.id ? { ...x, locked: !x.locked } : x)) })),
+                        },
                         { label: "↑", aria: `Bring ${o.name} forward`, run: () => edit((s) => reorderSceneObject(s, o.id, "up")) },
                         { label: "↓", aria: `Send ${o.name} backward`, run: () => edit((s) => reorderSceneObject(s, o.id, "down")) },
                         { label: "Copy", aria: `Duplicate ${o.name}`, run: () => edit((s) => duplicateSceneObject(s, o.id)) },
                         {
                           label: "Delete",
                           aria: `Delete ${o.name}`,
+                          disabled: o.locked,
                           run: () => {
                             edit((s) => removeSceneObject(s, o.id));
                             if (selectedId === o.id) setSelectedId(null);
                           },
                         },
                       ].map((a) => (
-                        <button key={a.label} type="button" onClick={a.run} aria-label={a.aria ?? `${a.label} ${o.name}`} className="min-w-8 h-8 px-1.5 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">
+                        <button
+                          key={a.label}
+                          type="button"
+                          onClick={a.run}
+                          aria-label={a.aria ?? `${a.label} ${o.name}`}
+                          aria-pressed={"pressed" in a ? a.pressed : undefined}
+                          disabled={"disabled" in a ? a.disabled : undefined}
+                          title={"disabled" in a && a.disabled ? "Unlock the layer to delete it" : undefined}
+                          className="min-w-8 h-8 px-1.5 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-40 disabled:hover:text-[var(--color-fg-muted)]"
+                        >
                           {a.label}
                         </button>
                       ))}

@@ -23,6 +23,7 @@ export default async function StudioScenePage({ params }: { params: Promise<{ id
   return (
     <HydrationGate>
       <SceneEditor
+        key={scene.id}
         scene={scene}
         images={assets.map((a) => ({ id: a.id, filename: a.filename }))}
         accent={access.artist.branding.primaryColor}

@@ -18,11 +18,10 @@ import { measureSceneText } from "@/lib/studio/text-measure";
 import { ScenePreview, type ManualAudio, type ScenePreviewEditor } from "./scene-preview";
 import { ObjectInspector } from "./object-inspector";
 import { InteractionBuilder } from "./interaction-builder";
+import { historyReducer } from "@/lib/studio/scene-history";
 import type { Scene, SceneObject, SceneSchema, SceneTransform } from "@/types";
 
 type Tab = "objects" | "interactions" | "scene";
-const HISTORY_LIMIT = 100;
-const COALESCE_MS = 700;
 const GRID_SIZES = [10, 20, 40, 80] as const;
 
 /** Canvas edit keys apply only when focus is on the canvas, a layer row, or nowhere in particular. */
@@ -30,46 +29,6 @@ function isCanvasKeyTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return true;
   if (target === document.body || target === document.documentElement) return true;
   return target.closest("[data-scene-canvas], [data-layer-select]") !== null;
-}
-
-interface History {
-  past: SceneSchema[];
-  present: SceneSchema;
-  future: SceneSchema[];
-  lastKey: string | null;
-  lastAt: number;
-}
-type HistoryAction =
-  | { type: "edit"; fn: (s: SceneSchema) => SceneSchema; key: string | null; at: number }
-  | { type: "undo" }
-  | { type: "redo" };
-
-/** Pure history reducer; edits sharing a key within COALESCE_MS merge into one undo step. */
-function historyReducer(h: History, a: HistoryAction): History {
-  switch (a.type) {
-    case "edit": {
-      const next = a.fn(h.present);
-      if (next === h.present) return h;
-      const merge = a.key !== null && h.lastKey === a.key && a.at - h.lastAt < COALESCE_MS;
-      return {
-        past: merge ? h.past : [...h.past, h.present].slice(-HISTORY_LIMIT),
-        present: next,
-        future: [],
-        lastKey: a.key,
-        lastAt: a.at,
-      };
-    }
-    case "undo": {
-      const prev = h.past[h.past.length - 1];
-      if (!prev) return h;
-      return { past: h.past.slice(0, -1), present: prev, future: [h.present, ...h.future].slice(0, HISTORY_LIMIT), lastKey: null, lastAt: 0 };
-    }
-    case "redo": {
-      const next = h.future[0];
-      if (!next) return h;
-      return { past: [...h.past, h.present].slice(-HISTORY_LIMIT), present: next, future: h.future.slice(1), lastKey: null, lastAt: 0 };
-    }
-  }
 }
 
 export function SceneEditor({ scene, images, accent }: { scene: Scene; images: { id: string; filename: string }[]; accent: string }) {
@@ -100,7 +59,7 @@ export function SceneEditor({ scene, images, accent }: { scene: Scene; images: {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !["checkbox", "range", "color"].includes((el as HTMLInputElement).type)))) return;
+      if (el && (el.isContentEditable || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !["checkbox", "range", "color"].includes((el as HTMLInputElement).type)))) return;
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) {
         e.preventDefault();

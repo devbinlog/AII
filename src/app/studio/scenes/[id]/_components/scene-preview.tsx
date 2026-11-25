@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { SceneRuntime } from "@/lib/engine/runtime/scene-runtime";
 import { SceneCanvas } from "@/components/engine/scene-canvas";
 import { createMockAudioFrame, simulateAudioFrame } from "@/lib/engine/audio/mock-frame";
+import { CanvasEditLayer, type CanvasEditLayerProps } from "./canvas-edit-layer";
 import type { SceneSchema } from "@/types";
+
+/** Canvas editing props; the layer itself gets the schema, runtime and play state from the preview. */
+export type ScenePreviewEditor = Omit<CanvasEditLayerProps, "schema" | "runtime" | "active">;
 
 export interface ManualAudio {
   bass: number;
@@ -16,7 +20,7 @@ export interface ManualAudio {
  * Live preview using the WS-04 SceneRuntime + Canvas2D renderer.
  * Audio is simulated (DEMO) or driven by the manual sliders.
  */
-export function ScenePreview({ schema, manualAudio }: { schema: SceneSchema; manualAudio: ManualAudio | null }) {
+export function ScenePreview({ schema, manualAudio, editor }: { schema: SceneSchema; manualAudio: ManualAudio | null; editor?: ScenePreviewEditor }) {
   const [runtime] = useState(() => new SceneRuntime(42));
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -87,6 +91,7 @@ export function ScenePreview({ schema, manualAudio }: { schema: SceneSchema; man
         style={{ aspectRatio: `${schema.canvasWidth} / ${schema.canvasHeight}`, maxHeight: "62vh" }}
       >
         <SceneCanvas runtime={runtime} className="absolute inset-0 h-full w-full" />
+        {editor && <CanvasEditLayer schema={schema} runtime={runtime} active={!playing} {...editor} />}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <button type="button" onClick={toggle} className="h-8 px-3 border border-[var(--color-border-strong)] hover:border-[var(--color-fg)] font-medium">
@@ -98,6 +103,7 @@ export function ScenePreview({ schema, manualAudio }: { schema: SceneSchema; man
         <span className="font-mono text-[var(--color-fg-muted)] tabular-nums" aria-live="off">
           {seconds}s / {total}s
         </span>
+        {editor && playing && <span className="text-[var(--color-fg-muted)]">Pause or reset to edit on the canvas.</span>}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[rgba(228,73,66,0.8)]">
           {manualAudio ? "Manual audio" : "Simulated audio"}
         </span>

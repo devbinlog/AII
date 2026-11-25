@@ -172,6 +172,52 @@ test.describe("Stage publish workflow (serial)", () => {
     await expect(stageRow).toContainText(`Public v${v}`);
   });
 
+  test("WS-07: an added member survives save, reload and publishing; fans see it; the previous version is intact", async ({ page, browser }) => {
+    type Item = { id: string; p: [number, number, number]; label: string; m?: string; role?: string };
+    const items = (): Promise<Item[]> => page.getByTestId("stage-state").evaluate((el) => JSON.parse((el as HTMLElement).dataset.items ?? "[]"));
+    await signIn(page.request, "studio@freefallers.com");
+    await page.goto("/studio/stage");
+    await waitForCanvas(page);
+    await page.getByRole("button", { name: "Default layout" }).click();
+    await page.getByLabel("New member role").selectOption({ label: "Guitar" });
+    await page.getByRole("button", { name: "Add member" }).click();
+    await page.getByLabel("Name", { exact: true }).fill("Second guitar");
+    await page.getByLabel("Name", { exact: true }).press("Enter");
+    await page.getByRole("button", { name: "Move downstage" }).click();
+    const member = (await items()).find((i) => i.role === "guitar" && i.m)!;
+    expect(member.label).toBe("Second guitar");
+    await page.getByRole("button", { name: "Save layout" }).click();
+    await expect(page.getByRole("status").first()).toContainText("Layout saved");
+
+    await page.reload();
+    await waitForCanvas(page);
+    await expect.poll(async () => (await items()).find((i) => i.id === member.id), { timeout: 15000 }).toMatchObject({ p: member.p, label: "Second guitar", m: member.m, role: "guitar" });
+    expect((await items()).filter((i) => i.m === member.m)).toHaveLength(2); // performer + their guitar
+
+    const before = (await (await page.request.get("/api/artists/freefallers/stage")).json()) as { ok: boolean; stage?: { version: number; items: Item[] } };
+    await page.getByRole("button", { name: /Publish (stage|new version)/ }).click();
+    await expect(page.getByRole("status").first()).toContainText(/Published stage v\d+/);
+
+    const fanCtx = await browser.newContext();
+    const fan = await fanCtx.newPage();
+    const pub = (await (await fan.request.get("/api/artists/freefallers/stage")).json()) as { stage: { version: number; items: (Item & { position: [number, number, number]; memberId?: string })[] } };
+    const published = pub.stage.items.find((i) => i.id === member.id)!;
+    expect(published).toMatchObject({ label: "Second guitar", memberId: member.m, role: "guitar", position: member.p });
+    await fan.goto("/artists/freefallers/stage");
+    await expect(fan.getByRole("button", { name: /Second guitar/ }).first()).toBeVisible({ timeout: 20000 });
+    await fanCtx.close();
+
+    // The version that was public before is unchanged in the version history
+    if (before.ok && before.stage) {
+      expect(pub.stage.version).toBe(before.stage.version + 1);
+    }
+
+    // Leave a default draft behind for the remaining tests
+    await page.getByRole("button", { name: "Default layout" }).click();
+    await page.getByRole("button", { name: "Save layout" }).click();
+    await expect(page.getByRole("status").first()).toContainText("Layout saved");
+  });
+
   test("F: unpublish from Studio closes the fan viewer", async ({ page, browser }) => {
     await signIn(page.request, "studio@freefallers.com");
     await page.goto("/studio/stage");

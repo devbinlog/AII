@@ -11,6 +11,7 @@ import { renderShape } from "./objects/shape";
 import { renderImage } from "./objects/image";
 import { ParticleSystem } from "./objects/particle";
 import { renderWaveform } from "./objects/waveform";
+import { fitScene } from "./viewport";
 
 // ============================================================
 // Helpers
@@ -57,11 +58,7 @@ export class Canvas2DRenderer implements RendererInterface {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // 3. Calculate scale to fit scene maintaining aspect ratio (letterbox/pillarbox)
-    const scaleX = canvas.width / schema.canvasWidth;
-    const scaleY = canvas.height / schema.canvasHeight;
-    const scale = Math.min(scaleX, scaleY);
-    const offsetX = (canvas.width - schema.canvasWidth * scale) / 2;
-    const offsetY = (canvas.height - schema.canvasHeight * scale) / 2;
+    const { scale, offsetX, offsetY } = fitScene(canvas.width, canvas.height, schema.canvasWidth, schema.canvasHeight);
 
     // 4. Apply scene transform
     ctx.save();

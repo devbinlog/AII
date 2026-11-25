@@ -106,6 +106,8 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
   const [live, setLive] = useState<Live | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const pendingRef = useRef<{ x: number; y: number; shift: boolean; alt: boolean } | null>(null);
+  /** A touch on the canvas that becomes a selection only if it ends as a tap (not a scroll). */
+  const tapRef = useRef<{ pointerId: number; x: number; y: number; id: string | null } | null>(null);
   const rafRef = useRef(0);
   const liveRef = useRef<Live | null>(null);
   const schemaRef = useRef(schema);
@@ -259,11 +261,24 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
     // A paused frame shows interaction-driven transforms; snap back to the authored frame before editing.
     if (runtime.getSnapshot().status !== "idle") previewOnCanvas(schemaRef.current);
     const id = pickAt(e.clientX, e.clientY);
+    // Touch: swiping over the canvas must still scroll the page (touch-action: pan-y),
+    // so a touch selects only when it ends as a tap; dragging starts on the selected
+    // object's drag surface instead.
+    if (e.pointerType === "touch") {
+      tapRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, id };
+      return;
+    }
     onSelect(id);
     if (id) {
       e.preventDefault();
       beginDrag(e, id, { type: "move" });
     }
+  };
+
+  /** Touch drag on the already-selected object (its surface blocks page scrolling). */
+  const onSurfaceDown = (e: React.PointerEvent, id: string) => {
+    if (e.pointerType !== "touch") return; // mouse/pen: the root picks the topmost object
+    onHandleDown(e, id, { type: "move" });
   };
 
   const onHandleDown = (e: React.PointerEvent, id: string, kind: DragKind) => {
@@ -290,6 +305,12 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const tap = tapRef.current;
+    if (tap && tap.pointerId === e.pointerId) {
+      tapRef.current = null;
+      if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < DRAG_THRESHOLD_PX * 3) onSelect(tap.id);
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
     // Apply the last pointer position before committing.
@@ -299,6 +320,7 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
   };
 
   const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (tapRef.current?.pointerId === e.pointerId) tapRef.current = null; // the browser took it as a scroll
     if (dragRef.current && e.pointerId === dragRef.current.pointerId) endDrag(false);
   };
 
@@ -320,7 +342,7 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
         if (dragRef.current && e.pointerId === dragRef.current.pointerId) endDrag(true);
       }}
       className="absolute inset-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-fg)]"
-      style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "none" : "auto" }}
+      style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "pan-y pinch-zoom" : "auto" }}
     >
       {active && vp && grid && grid * vp.scale >= 6 && (
         <div
@@ -362,6 +384,7 @@ export const CanvasEditLayer = memo(function CanvasEditLayer({
           vp={vp}
           dragging={live !== null}
           onHandleDown={(e, kind) => onHandleDown(e, shown.id, kind)}
+          onSurfaceDown={(e) => onSurfaceDown(e, shown.id)}
         />
       )}
     </div>
@@ -373,11 +396,13 @@ function SelectionBox({
   vp,
   dragging,
   onHandleDown,
+  onSurfaceDown,
 }: {
   obj: SceneObject;
   vp: SceneViewport;
   dragging: boolean;
   onHandleDown: (e: React.PointerEvent, kind: DragKind) => void;
+  onSurfaceDown: (e: React.PointerEvent) => void;
 }) {
   const t = obj.transform;
   const b = scaledBox(t, localBox(obj, measureSceneText));
@@ -400,6 +425,10 @@ function SelectionBox({
       style={{ left: vp.offsetX + t.x * vp.scale, top: vp.offsetY + t.y * vp.scale, width: 0, height: 0, transform: `rotate(${t.rotation}deg)` }}
     >
       <div className={`absolute border ${outline}`} style={{ left, top, width, height }}>
+        {editable && (
+          // Touch drag surface for the selected object: only here is page scrolling blocked.
+          <span data-drag-surface="" onPointerDown={onSurfaceDown} className="pointer-events-auto absolute inset-0" style={{ touchAction: "none" }} />
+        )}
         {obj.locked && (
           <span className="absolute -top-5 left-0 whitespace-nowrap bg-[var(--color-bg)] px-1 text-[10px] font-mono uppercase tracking-widest text-[var(--color-fg-muted)]">
             Locked
@@ -430,11 +459,11 @@ function SelectionBox({
           })}
         {editable && (
           <>
-            <span className="absolute left-1/2 -top-6 h-6 w-px bg-[var(--color-accent)]" />
+            <span className="absolute left-1/2 -top-6 h-6 w-px bg-[var(--color-accent)] pointer-coarse:-top-10 pointer-coarse:h-10" />
             <span
               data-handle="rotate"
               onPointerDown={(e) => onHandleDown(e, { type: "rotate" })}
-              className="pointer-events-auto absolute left-1/2 -top-6 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+              className="pointer-events-auto absolute left-1/2 -top-6 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center pointer-coarse:-top-10 pointer-coarse:h-11 pointer-coarse:w-11"
               style={{ cursor: "grab", touchAction: "none" }}
             >
               <span className="h-3 w-3 rounded-full border border-[var(--color-accent)] bg-[var(--color-bg)]" />

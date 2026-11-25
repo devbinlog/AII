@@ -91,7 +91,11 @@ test.describe("Artist creates, publishes, and fans experience it", () => {
     await expect(page.getByRole("listitem", { name: /Mapping 1/ })).toBeVisible();
 
     await page.getByRole("button", { name: "Save scene" }).click();
-    await expect(page.getByRole("status")).toContainText("Saved");
+    // Each step below may hit route handlers compiled for the first time on a fresh dev
+    // server (measured: campaign PATCH 4.0 s + status POST 1.3 s cold vs ~0.3 s warm),
+    // so allow for cold compiles instead of the 5 s default.
+    const STEP_TIMEOUT = 15_000;
+    await expect(page.getByRole("status")).toContainText("Saved", { timeout: STEP_TIMEOUT });
 
     // 3. Experience
     await page.goto("/studio/experiences");
@@ -103,7 +107,7 @@ test.describe("Artist creates, publishes, and fans experience it", () => {
     const param = page.getByRole("listitem").filter({ has: page.getByLabel("Label") }).first();
     await param.getByLabel("Label").fill(paramLabel);
     await page.getByRole("button", { name: /Save & publish new version/ }).click();
-    await expect(page.getByRole("status")).toContainText("Published v1.0.0");
+    await expect(page.getByRole("status")).toContainText("Published v1.0.0", { timeout: STEP_TIMEOUT });
 
     // 4. Campaign
     await page.goto("/studio/campaigns");
@@ -120,7 +124,7 @@ test.describe("Artist creates, publishes, and fans experience it", () => {
     expect((await fan.goto(`/campaigns/${slug}`))?.status()).toBe(404);
 
     await page.getByRole("button", { name: /Save & go live/ }).click();
-    await expect(page.getByRole("status")).toContainText("Campaign is live");
+    await expect(page.getByRole("status")).toContainText("Campaign is live", { timeout: STEP_TIMEOUT });
 
     // 5. Fan view (anonymous)
     await fan.goto(`/campaigns/${slug}`);

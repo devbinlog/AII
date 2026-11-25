@@ -18,6 +18,18 @@ import {
   ROLE_STYLES,
   nudgeItem,
   rotateItem,
+  addMember,
+  addedMembers,
+  instrumentOf,
+  isAddedMember,
+  newMemberIds,
+  playerOf,
+  removeMember,
+  renameMember,
+  setMemberRole,
+  MAX_ADDED_MEMBERS,
+  PERFORMER_ROLES,
+  type PerformerRole,
   type CameraView,
   type StageItem,
   type StageLayout,
@@ -94,6 +106,7 @@ export function StageConfigurator({
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [focus, setFocus] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
+  const [newRole, setNewRole] = useState<PerformerRole>("guitar");
   const reducedMotion = useReducedMotion();
   const dragStart = useRef<StageLayout | null>(null);
 
@@ -371,6 +384,32 @@ export function StageConfigurator({
                 <h2 className="px-3 py-2 border-b border-[var(--color-border)] text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-fg-muted)]">
                   {g.title}
                 </h2>
+                {g.list === members && canEdit && (
+                  <form
+                    className="flex items-center gap-1.5 border-b border-[var(--color-border)] px-3 py-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const ids = newMemberIds();
+                      step((l) => addMember(l, newRole, ids));
+                      setSelectedId(ids.performerId);
+                    }}
+                  >
+                    <label htmlFor="stage-new-role" className="sr-only">New member role</label>
+                    <select
+                      id="stage-new-role"
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value as PerformerRole)}
+                      className="h-9 min-w-0 flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 text-sm"
+                    >
+                      {PERFORMER_ROLES.map((r) => (
+                        <option key={r} value={r}>{ROLE_STYLES[r].label}</option>
+                      ))}
+                    </select>
+                    <button type="submit" className={btn} disabled={addedMembers(layout).length >= MAX_ADDED_MEMBERS} title={`Up to ${MAX_ADDED_MEMBERS} added members`}>
+                      Add member
+                    </button>
+                  </form>
+                )}
                 <ul className="divide-y divide-[var(--color-border)]">{g.list.map(itemButton)}</ul>
               </section>
             ))}
@@ -421,6 +460,32 @@ export function StageConfigurator({
                   {selected.label}
                 </p>
                 <p className="mt-0.5 text-xs text-[var(--color-fg-muted)]">{role ? `${ROLE_STYLES[role].label} hologram` : selected.kind}</p>
+                {selected.kind === "performer" && canEdit && (
+                  <MemberControls
+                    key={`${selected.id}:${selected.label}:${selected.role ?? ""}`}
+                    member={selected}
+                    instrument={selected.memberId ? instrumentOf(layout, selected.memberId) : null}
+                    btn={btn}
+                    onRename={(name) => step((l) => renameMember(l, selected.id, name))}
+                    onRole={(r) => {
+                      const ids = newMemberIds();
+                      step((l) => setMemberRole(l, selected.memberId!, r, ids.instrumentId));
+                    }}
+                    onRemove={() => {
+                      step((l) => removeMember(l, selected.memberId!));
+                      setSelectedId(null);
+                    }}
+                    onSelectInstrument={(id) => setSelectedId(id)}
+                  />
+                )}
+                {selected.kind !== "performer" && selected.memberId && playerOf(layout, selected) && (
+                  <p className="mt-2 text-xs">
+                    Played by{" "}
+                    <button type="button" className="underline underline-offset-2" onClick={() => setSelectedId(playerOf(layout, selected)!.id)}>
+                      {playerOf(layout, selected)!.label}
+                    </button>
+                  </p>
+                )}
                 <dl className="mt-3 grid grid-cols-3 gap-2 font-mono text-xs">
                   <div>
                     <dt className="text-[var(--color-fg-muted)]">X</dt>
@@ -467,8 +532,84 @@ export function StageConfigurator({
         data-testid="stage-state"
         data-view={view.name}
         data-camera={camera ? JSON.stringify(camera) : ""}
-        data-items={JSON.stringify(layout.items.map((i) => ({ id: i.id, p: i.position, r: i.rotationY })))}
+        data-items={JSON.stringify(layout.items.map((i) => ({ id: i.id, p: i.position, r: i.rotationY, label: i.label, ...(i.memberId ? { m: i.memberId } : {}), ...(i.role ? { role: i.role } : {}) })))}
       />
+    </div>
+  );
+}
+
+/** Name / role / removal for the selected performer. Built-in members can be renamed only. */
+function MemberControls({
+  member,
+  instrument,
+  btn,
+  onRename,
+  onRole,
+  onRemove,
+  onSelectInstrument,
+}: {
+  member: StageItem;
+  instrument: StageItem | null;
+  btn: string;
+  onRename: (name: string) => void;
+  onRole: (role: PerformerRole) => void;
+  onRemove: () => void;
+  onSelectInstrument: (id: string) => void;
+}) {
+  const added = isAddedMember(member);
+  const commit = (el: HTMLInputElement) => {
+    if (el.value.trim() && el.value.trim() !== member.label) onRename(el.value);
+    else el.value = member.label;
+  };
+  return (
+    <div className="mt-3 flex flex-col gap-2 text-xs">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="stage-member-name" className="text-[var(--color-fg-muted)]">Name</label>
+        <input
+          id="stage-member-name"
+          defaultValue={member.label}
+          maxLength={40}
+          onBlur={(e) => commit(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(e.currentTarget);
+            if (e.key === "Escape") e.currentTarget.value = member.label;
+          }}
+          className="h-9 bg-transparent border border-[var(--color-border)] px-2 text-sm text-[var(--color-fg)] focus:outline-none focus:border-[var(--color-fg)]"
+        />
+      </div>
+      {added ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="stage-member-role" className="text-[var(--color-fg-muted)]">Role</label>
+            <select
+              id="stage-member-role"
+              value={member.role}
+              onChange={(e) => onRole(e.target.value as PerformerRole)}
+              className="h-9 bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 text-sm text-[var(--color-fg)]"
+            >
+              {PERFORMER_ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_STYLES[r].label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[var(--color-fg-muted)]">
+            Instrument:{" "}
+            {instrument ? (
+              <button type="button" className="underline underline-offset-2 text-[var(--color-fg)]" onClick={() => onSelectInstrument(instrument.id)}>
+                {instrument.label}
+              </button>
+            ) : (
+              "shares the drum kit"
+            )}
+          </p>
+          <button type="button" className={`${btn} w-max`} onClick={onRemove}>
+            Remove from stage
+          </button>
+          <p className="text-[11px] text-[var(--color-fg-muted)]">Removes this performer and their instrument from the stage only. No account is affected.</p>
+        </>
+      ) : (
+        <p className="text-[11px] text-[var(--color-fg-muted)]">Built-in member: take the role off stage with the lineup above.</p>
+      )}
     </div>
   );
 }

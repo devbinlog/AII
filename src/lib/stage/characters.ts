@@ -64,9 +64,10 @@ const ROLE_BY_ID: Record<string, PerformerRole> = {
   "member-keys": "keys",
 };
 
-/** Role of a performer item (by stable id, then by label). Non-performers return null. */
-export function performerRole(item: Pick<StageItem, "id" | "kind" | "label">): PerformerRole | null {
+/** Role of a performer item (explicit role, then stable id, then label). Non-performers return null. */
+export function performerRole(item: Pick<StageItem, "id" | "kind" | "label"> & { role?: PerformerRole | undefined }): PerformerRole | null {
   if (item.kind !== "performer") return null;
+  if (item.role) return item.role;
   const byId = ROLE_BY_ID[item.id];
   if (byId) return byId;
   const l = item.label.toLowerCase();

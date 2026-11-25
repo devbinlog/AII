@@ -1,6 +1,7 @@
 // Pure layout operations: bounds, locks, snapping, movement.
 
 import { benchedItemIds } from "./characters";
+import { validateAddedMembers } from "./members";
 import type { StageBounds, StageItem, StageItemKind, StageLayout, Vec3 } from "./types";
 
 export const STAGE_BOUNDS: StageBounds = { halfWidth: 6, halfDepth: 4 };
@@ -105,7 +106,8 @@ export function normalizeStageLayout(layout: StageLayout, reference: StageLayout
 /**
  * Server-side guard: locked items must stay exactly where the reference layout
  * has them, every movable item must be inside the stage, and the item set must
- * be the reference set minus the benched roles (at least one member on stage).
+ * be the reference set minus the benched roles (at least one member on stage),
+ * plus optional added members with their instruments (see members.ts).
  * Returns human-readable problems (empty = valid).
  */
 export function validateAgainstReference(candidate: StageLayout, reference: StageLayout): string[] {
@@ -119,7 +121,8 @@ export function validateAgainstReference(candidate: StageLayout, reference: Stag
     const ref = refById.get(item.id);
     if (off.has(item.id)) problems.push(`${item.id}: its role is benched`);
     if (!ref) {
-      problems.push(`unknown item ${item.id}`);
+      // Added members and their instruments: checked by validateAddedMembers below.
+      if (!isInsideStage(item)) problems.push(`${item.id}: outside the stage`);
       continue;
     }
     if (item.kind !== ref.kind) problems.push(`${item.id}: kind cannot change`);
@@ -132,6 +135,7 @@ export function validateAgainstReference(candidate: StageLayout, reference: Stag
     }
     if (!isInsideStage(item)) problems.push(`${item.id}: outside the stage`);
   }
+  problems.push(...validateAddedMembers(candidate.items, new Set(refById.keys())));
   for (const id of refById.keys()) if (!seen.has(id) && !off.has(id)) problems.push(`missing item ${id}`);
   if (!candidate.items.some((i) => i.kind === "performer")) problems.push("at least one member must stay on stage");
   return problems;

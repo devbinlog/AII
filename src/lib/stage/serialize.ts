@@ -13,6 +13,8 @@ export const StageItemZod = z.object({
   position: vec3,
   rotationY: finite,
   locked: z.boolean(),
+  memberId: z.string().regex(/^mbr-[a-z0-9]{6,32}$/, "invalid member id").optional(),
+  role: z.enum(["vocal", "guitar", "bass", "drums", "keys"]).optional(),
 });
 
 export const StageLayoutZod = z.object({
@@ -32,8 +34,9 @@ export function parseStageLayout(data: unknown): { ok: true; layout: StageLayout
   const r = StageLayoutZod.safeParse(data);
   if (!r.success) return { ok: false, error: r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
   // Keep optional keys absent (not undefined) when they were absent, so round-trips are lossless.
-  const { backlineVersion, benched, ...rest } = r.data;
-  return { ok: true, layout: { ...rest, ...(backlineVersion ? { backlineVersion } : {}), ...(benched ? { benched } : {}) } };
+  const { backlineVersion, benched, items, ...rest } = r.data;
+  const cleanItems = items.map(({ memberId, role, ...item }) => ({ ...item, ...(memberId ? { memberId } : {}), ...(role ? { role } : {}) }));
+  return { ok: true, layout: { ...rest, items: cleanItems, ...(backlineVersion ? { backlineVersion } : {}), ...(benched ? { benched } : {}) } };
 }
 
 export function serializeStageLayout(layout: StageLayout): string {

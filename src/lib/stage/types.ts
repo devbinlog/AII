@@ -22,6 +22,15 @@ export interface StageItem {
   /** Rotation around the vertical axis, radians. */
   rotationY: number;
   locked: boolean;
+  /**
+   * Performance-member identity for members added beyond the five built-in ones
+   * (`mbr-…`). On a performer: who this is. On an instrument: whose instrument it is.
+   * It names a performer in the stage lineup, NOT an account or artist membership,
+   * and is independent of the stage object `id`. Absent on built-in items.
+   */
+  memberId?: string;
+  /** Explicit role of an added performer. Built-in performers derive it from their id. */
+  role?: PerformerRole;
 }
 
 export type CameraView = "perspective" | "top" | "front" | "side";

@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FormMessage, Panel, Select, TextArea } from "@/components/studio/ui";
+import { FormMessage, Panel, SaveIndicator, Select, TextArea } from "@/components/studio/ui";
 import { describeDetails, studioFetch } from "@/components/studio/client-api";
+import { useUnsavedChanges } from "@/components/studio/use-unsaved-changes";
+import { stableStringify } from "@/lib/studio/readiness";
 import type { Release } from "@/types";
 
 interface TrackDraft {
@@ -37,7 +39,16 @@ export function ReleaseEditor({ release, canPublish }: { release: Release; canPu
 
   const updateTrack = (key: string, patch: Partial<TrackDraft>) => setTracks((ts) => ts.map((t) => (t.key === key ? { ...t, ...patch } : t)));
 
+  // Track keys are client-only; compare what is actually saved.
+  const current = stableStringify({ title, description, type, releaseDate, label, tracks: tracks.map(({ title: t, minutes, seconds }) => [t, minutes, seconds]) });
+  const [savedSnapshot, setSavedSnapshot] = useState(current);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const dirty = current !== savedSnapshot;
+  useUnsavedChanges(dirty);
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
+
   async function save(): Promise<boolean> {
+    const snapshot = current;
     setBusy("save");
     setResult(null);
     const res = await studioFetch(`/api/studio/releases/${release.id}`, "PATCH", {
@@ -53,16 +64,24 @@ export function ReleaseEditor({ release, canPublish }: { release: Release; canPu
     });
     setBusy(null);
     if (!res.ok) {
+      setSaveFailed(true);
       setResult({ ok: false, message: res.message, details: describeDetails(res.details) });
       return false;
     }
+    setSaveFailed(false);
+    setSavedSnapshot(snapshot);
     setResult({ ok: true, message: "Saved" });
     router.refresh();
     return true;
   }
 
+  async function reviewPublish() {
+    if (dirty && !(await save())) return;
+    setConfirmingPublish(true);
+  }
+
   async function publish() {
-    if (!(await save())) return;
+    setConfirmingPublish(false);
     setBusy("publish");
     const res = await studioFetch(`/api/studio/releases/${release.id}/publish`, "POST");
     setBusy(null);
@@ -75,8 +94,12 @@ export function ReleaseEditor({ release, canPublish }: { release: Release; canPu
     setBusy("delete");
     const res = await studioFetch(`/api/studio/releases/${release.id}`, "DELETE");
     setBusy(null);
-    if (res.ok) router.push("/studio/releases");
-    else setResult({ ok: false, message: res.message });
+    if (res.ok) {
+      setSavedSnapshot(current); // nothing left to protect
+      router.push("/studio/releases");
+    } else {
+      setResult({ ok: false, message: res.message, details: describeDetails(res.details) });
+    }
   }
 
   return (
@@ -147,15 +170,35 @@ export function ReleaseEditor({ release, canPublish }: { release: Release; canPu
       </div>
 
       <div className="flex flex-col gap-3">
+        <SaveIndicator dirty={dirty} failed={saveFailed} />
         <FormMessage result={result} />
         <Button type="button" onClick={() => void save()} loading={busy === "save"} disabled={busy !== null}>
           Save
         </Button>
         {release.status === "draft" && (
           canPublish ? (
-            <Button type="button" variant="outline" onClick={() => void publish()} loading={busy === "publish"} disabled={busy !== null}>
-              Save &amp; publish
-            </Button>
+            <>
+              <Button type="button" variant="outline" onClick={() => void reviewPublish()} loading={busy === "save" && confirmingPublish} disabled={busy !== null || (confirmingPublish && !dirty)}>
+                Save &amp; publish
+              </Button>
+              {confirmingPublish && !dirty && (
+                <section aria-labelledby="release-publish-title" className="border border-[var(--color-fg)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-3">
+                  <h2 id="release-publish-title" className="text-sm font-semibold">Publish “{title}”?</h2>
+                  <p className="text-xs text-[var(--color-fg-muted)]">
+                    {tracks.length} track{tracks.length === 1 ? "" : "s"} · {releaseDate}. The release page becomes public and a published release can no longer be deleted.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" onClick={() => void publish()} disabled={busy !== null || tracks.length === 0} autoFocus>
+                      Publish release
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingPublish(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                  {tracks.length === 0 && <p role="alert" className="text-xs text-[var(--color-accent-fg)]">Add at least one track before publishing.</p>}
+                </section>
+              )}
+            </>
           ) : (
             <p className="text-xs text-[var(--color-fg-muted)]">An artist admin publishes releases.</p>
           )

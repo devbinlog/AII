@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FormMessage, Panel, Select, StatusBadge, TextArea } from "@/components/studio/ui";
+import { FormMessage, Panel, SaveIndicator, Select, StatusBadge, TextArea } from "@/components/studio/ui";
 import { describeDetails, studioFetch } from "@/components/studio/client-api";
+import { useUnsavedChanges } from "@/components/studio/use-unsaved-changes";
+import { stableStringify } from "@/lib/studio/readiness";
 import type { Campaign } from "@/types";
 
 function toLocalInput(iso: string | null): string {
@@ -42,7 +44,20 @@ export function CampaignEditor({
   const selectedExperience = experiences.find((e) => e.id === experienceId);
   const isPublic = campaign.status !== "draft";
 
+  const current = stableStringify({ title, description, experienceId, primaryColor, backgroundColor, tagline, policy, startsAt, endsAt });
+  const [savedSnapshot, setSavedSnapshot] = useState(current);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const dirty = editable && current !== savedSnapshot;
+  useUnsavedChanges(dirty);
+
+  const [confirmingLive, setConfirmingLive] = useState(false);
+  const confirmHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (confirmingLive) confirmHeading.current?.focus();
+  }, [confirmingLive]);
+
   async function save(): Promise<boolean> {
+    const snapshot = current;
     setBusy("save");
     setResult(null);
     const res = await studioFetch(`/api/studio/campaigns/${campaign.id}`, "PATCH", {
@@ -56,17 +71,26 @@ export function CampaignEditor({
     });
     setBusy(null);
     if (!res.ok) {
+      setSaveFailed(true);
       setResult({ ok: false, message: res.message, details: describeDetails(res.details) });
       return false;
     }
+    setSaveFailed(false);
+    setSavedSnapshot(snapshot);
     setResult({ ok: true, message: "Saved" });
     router.refresh();
     return true;
   }
 
+  /** Going live is public: save pending edits, then ask for a final confirmation. */
+  async function reviewGoLive() {
+    if (dirty && !(await save())) return;
+    setConfirmingLive(true);
+  }
+
   async function setStatus(action: "publish" | "end") {
     if (action === "end" && !window.confirm("End this campaign? Fans will no longer be able to create artworks.")) return;
-    if (action === "publish" && !(await save())) return;
+    setConfirmingLive(false);
     setBusy(action);
     const res = await studioFetch(`/api/studio/campaigns/${campaign.id}/status`, "POST", { action });
     setBusy(null);
@@ -87,6 +111,7 @@ export function CampaignEditor({
         <Link href="/studio/campaigns" className="text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">← Campaigns</Link>
         <h1 className="flex-1 min-w-0 truncate text-2xl font-semibold">{title}</h1>
         <StatusBadge status={campaign.status} />
+        {editable && <SaveIndicator dirty={dirty} failed={saveFailed} />}
         {isPublic && (
           <Link href={`/campaigns/${campaign.slug}`} className="text-sm underline underline-offset-4">Open public page</Link>
         )}
@@ -169,10 +194,44 @@ export function CampaignEditor({
           )}
           {canPublish && (campaign.status === "draft" || campaign.status === "scheduled") && (
             <>
-              <Button type="button" variant="outline" onClick={() => void setStatus("publish")} loading={busy === "publish"} disabled={busy !== null || !selectedExperience?.published}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void reviewGoLive()}
+                loading={busy === "save" && confirmingLive}
+                disabled={busy !== null || !selectedExperience?.published || (confirmingLive && !dirty)}
+              >
                 Save &amp; go live
               </Button>
-              {!selectedExperience?.published && <p className="text-xs text-[var(--color-fg-muted)]">Publish the experience before going live.</p>}
+              {!selectedExperience?.published && (
+                <p className="text-xs text-[var(--color-fg-muted)]">
+                  Publish the experience before going live.{" "}
+                  <Link href={`/studio/experiences/${experienceId}`} className="underline underline-offset-2">Open experience</Link>
+                </p>
+              )}
+              {confirmingLive && !dirty && selectedExperience?.published && (
+                <section aria-labelledby="go-live-title" className="border border-[var(--color-fg)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-3">
+                  <h2 id="go-live-title" ref={confirmHeading} tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+                    Go live now?
+                  </h2>
+                  <ul className="flex flex-col gap-1 text-xs text-[var(--color-fg-muted)]">
+                    <li>Public at /campaigns/{campaign.slug}</li>
+                    <li>Fans play the published version of “{selectedExperience.title}”.</li>
+                    <li>
+                      {policy.requireLogin ? "Sign-in required to view" : "Anyone can view"} ·{" "}
+                      {policy.moderationEnabled ? "artworks are moderated" : "artworks are not moderated"}
+                    </li>
+                  </ul>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" onClick={() => void setStatus("publish")} loading={busy === "publish"} disabled={busy !== null}>
+                      Go live now
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingLive(false)} disabled={busy !== null}>
+                      Cancel
+                    </Button>
+                  </div>
+                </section>
+              )}
             </>
           )}
           {canPublish && campaign.status === "active" && (

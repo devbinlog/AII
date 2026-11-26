@@ -160,3 +160,24 @@ export function DemoNotice({ children }: { children: React.ReactNode }) {
     </p>
   );
 }
+
+/**
+ * Save state of a Studio editor. A bare aria-live region (not role="status"):
+ * FormMessage owns the single status role on each editor.
+ */
+export function SaveIndicator({ dirty, failed }: { dirty: boolean; failed?: boolean }) {
+  const state = dirty ? (failed ? "failed" : "unsaved") : "saved";
+  const label = state === "failed" ? "Not saved — fix the errors and save again" : state === "unsaved" ? "Unsaved changes" : "All changes saved";
+  return (
+    <span aria-live="polite" data-save-state={state} className="inline-flex items-center gap-1.5 text-xs font-mono text-[var(--color-fg-muted)]">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          state === "saved" ? "bg-emerald-400" : state === "failed" ? "bg-[var(--color-accent)]" : "bg-amber-400"
+        )}
+      />
+      {label}
+    </span>
+  );
+}

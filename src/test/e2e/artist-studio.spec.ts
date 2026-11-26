@@ -107,6 +107,9 @@ test.describe("Artist creates, publishes, and fans experience it", () => {
     const param = page.getByRole("listitem").filter({ has: page.getByLabel("Label") }).first();
     await param.getByLabel("Label").fill(paramLabel);
     await page.getByRole("button", { name: /Save & publish new version/ }).click();
+    // WS-08: publishing is a two-step review of the server's readiness.
+    await expect(page.getByRole("heading", { name: "Publish v1.0.0?" })).toBeVisible({ timeout: STEP_TIMEOUT });
+    await page.getByRole("button", { name: "Publish v1.0.0" }).click();
     await expect(page.getByRole("status")).toContainText("Published v1.0.0", { timeout: STEP_TIMEOUT });
 
     // 4. Campaign
@@ -124,6 +127,7 @@ test.describe("Artist creates, publishes, and fans experience it", () => {
     expect((await fan.goto(`/campaigns/${slug}`))?.status()).toBe(404);
 
     await page.getByRole("button", { name: /Save & go live/ }).click();
+    await page.getByRole("button", { name: "Go live now" }).click();
     await expect(page.getByRole("status")).toContainText("Campaign is live", { timeout: STEP_TIMEOUT });
 
     // 5. Fan view (anonymous)

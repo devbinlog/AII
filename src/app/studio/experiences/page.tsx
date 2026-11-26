@@ -10,7 +10,8 @@ import { CreateExperienceForm } from "./_components/create-experience-form";
 
 export const metadata: Metadata = { title: "Experiences" };
 
-export default async function StudioExperiencesPage() {
+export default async function StudioExperiencesPage({ searchParams }: { searchParams: Promise<{ release?: string }> }) {
+  const requestedRelease = (await searchParams).release;
   const access = await getStudioAccess("/studio/experiences");
   if (access.status !== "ok") return <StudioForbidden />;
   const repo = getRepository();
@@ -52,7 +53,11 @@ export default async function StudioExperiencesPage() {
         </Panel>
         <Panel title="New experience">
           <HydrationGate>
-            <CreateExperienceForm releases={releases.map((r) => ({ id: r.id, title: r.title }))} />
+            <CreateExperienceForm
+              releases={releases.map((r) => ({ id: r.id, title: r.title }))}
+              // Only one of this artist's own releases can be preselected.
+              initialReleaseId={releases.some((r) => r.id === requestedRelease) ? requestedRelease : undefined}
+            />
           </HydrationGate>
         </Panel>
       </div>

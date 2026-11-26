@@ -16,12 +16,18 @@ export function slugify(title: string): string {
     .slice(0, 60);
 }
 
-export function CreateCampaignForm({ experiences }: { experiences: { id: string; title: string; published: boolean }[] }) {
+export function CreateCampaignForm({
+  experiences,
+  initialExperienceId,
+}: {
+  experiences: { id: string; title: string; published: boolean }[];
+  initialExperienceId?: string | undefined;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
-  const [experienceId, setExperienceId] = useState(experiences.find((e) => e.published)?.id ?? experiences[0]?.id ?? "");
+  const [experienceId, setExperienceId] = useState(initialExperienceId ?? experiences.find((e) => e.published)?.id ?? experiences[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; details?: string[] } | null>(null);
 

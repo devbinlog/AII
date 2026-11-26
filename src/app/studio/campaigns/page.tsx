@@ -11,7 +11,8 @@ import { CreateCampaignForm } from "./_components/create-campaign-form";
 
 export const metadata: Metadata = { title: "Campaigns" };
 
-export default async function StudioCampaignsPage() {
+export default async function StudioCampaignsPage({ searchParams }: { searchParams: Promise<{ experience?: string }> }) {
+  const requestedExperience = (await searchParams).experience;
   const access = await getStudioAccess("/studio/campaigns");
   if (access.status !== "ok") return <StudioForbidden />;
   const repo = getRepository();
@@ -48,7 +49,11 @@ export default async function StudioCampaignsPage() {
             <p className="text-sm text-[var(--color-fg-muted)]">Create an experience first.</p>
           ) : (
             <HydrationGate>
-              <CreateCampaignForm experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))} />
+              <CreateCampaignForm
+                experiences={experiences.map((e) => ({ id: e.id, title: e.title, published: e.currentVersionId !== null }))}
+                // Only one of this artist's own experiences can be preselected.
+                initialExperienceId={experiences.some((e) => e.id === requestedExperience) ? requestedExperience : undefined}
+              />
             </HydrationGate>
           )}
         </Panel>

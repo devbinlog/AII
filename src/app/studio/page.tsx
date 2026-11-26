@@ -7,6 +7,11 @@ import { getStudioAccess } from "@/lib/studio/session";
 import { StudioForbidden } from "@/components/studio/studio-forbidden";
 import { Panel, RowLink, StatusBadge, StudioPageHeader, EmptyState } from "@/components/studio/ui";
 import { formatCount, formatDate } from "@/lib/utils/format";
+import { loadStudioFlow } from "@/lib/studio/readiness-loader";
+import { cn } from "@/lib/utils/cn";
+import type { FlowStepState } from "@/lib/studio/readiness";
+
+const STEP_STATE_LABEL: Record<FlowStepState, string> = { done: "Done", in_progress: "In progress", todo: "To do" };
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -17,12 +22,13 @@ export default async function StudioDashboardPage() {
 
   const repo = getRepository();
   const page = { page: 1, pageSize: 200 };
-  const [{ releases }, { scenes }, { experiences }, { campaigns }, { assets }] = await Promise.all([
+  const [{ releases }, { scenes }, { experiences }, { campaigns }, { assets }, flow] = await Promise.all([
     repo.release.listByArtist(artist.id, page),
     repo.scene.listByArtist(artist.id, page),
     repo.experience.listByArtist(artist.id, page),
     repo.campaign.listByArtist(artist.id, page),
     repo.media.listByArtist(artist.id, page),
+    loadStudioFlow(repo, artist),
   ]);
 
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
@@ -54,6 +60,53 @@ export default async function StudioDashboardPage() {
           </>
         }
       />
+
+      <section aria-labelledby="flow-title" className="mb-8 border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
+          <h2 id="flow-title" className="text-xs font-mono font-semibold uppercase tracking-widest text-[var(--color-fg-muted)]">Production flow</h2>
+          {flow.next ? (
+            <Link href={flow.next.href} className="text-sm font-medium underline underline-offset-4">
+              Next: {flow.next.label} →
+            </Link>
+          ) : (
+            <span className="text-sm text-emerald-400">Everything is live</span>
+          )}
+        </div>
+        <ol className="grid sm:grid-cols-2 lg:grid-cols-5 gap-px bg-[var(--color-border)]">
+          {flow.steps.map((step, i) => (
+            <li key={step.key} className="bg-[var(--color-bg-secondary)]">
+              <Link
+                href={step.href}
+                aria-label={`${i + 1}. ${step.label}: ${STEP_STATE_LABEL[step.state]} — ${step.summary}`}
+                className="flex h-full flex-col gap-1 px-4 py-3 hover:bg-white/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-fg)]"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-mono",
+                      step.state === "done" && "border-emerald-500/60 text-emerald-400",
+                      step.state === "in_progress" && "border-amber-500/60 text-amber-400",
+                      step.state === "todo" && "border-[var(--color-border-strong)] text-[var(--color-fg-muted)]"
+                    )}
+                  >
+                    {step.state === "done" ? "✓" : i + 1}
+                  </span>
+                  {step.label}
+                </span>
+                <span className="text-xs text-[var(--color-fg-muted)]">{step.summary}</span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+        <p className="px-4 py-2 border-t border-[var(--color-border)] text-xs text-[var(--color-fg-muted)]">
+          3D Stage publishes on its own and does not depend on this flow —{" "}
+          <Link href={flow.stage.href} className="underline underline-offset-2">
+            {flow.stage.state === "live" ? `stage live v${flow.stage.version}` : flow.stage.state === "draft" ? "stage draft saved, not public" : "stage not set up"}
+          </Link>
+          .
+        </p>
+      </section>
 
       <dl className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[var(--color-border)] border border-[var(--color-border)] mb-8">
         {stats.map((s) => (

@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { FormMessage, Select } from "@/components/studio/ui";
 import { describeDetails, studioFetch } from "@/components/studio/client-api";
 
-export function CreateExperienceForm({ releases }: { releases: { id: string; title: string }[] }) {
+export function CreateExperienceForm({ releases, initialReleaseId }: { releases: { id: string; title: string }[]; initialReleaseId?: string | undefined }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [releaseId, setReleaseId] = useState("");
+  const [releaseId, setReleaseId] = useState(initialReleaseId ?? "");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string; details?: string[] } | null>(null);
 

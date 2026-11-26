@@ -92,7 +92,9 @@ export function validateExperienceForPublish(
   const sceneIds = new Set(experience.scenes.map((s) => s.sceneId));
   for (const param of experience.editableParameters) {
     const scene = scenesById.get(param.sceneId) ?? null;
-    if (!sceneIds.has(param.sceneId) || !scene) {
+    // Never inspect another artist's scene: its object names would end up in the
+    // issue messages, which the readiness API returns. SCENE_FOREIGN already blocks.
+    if (!sceneIds.has(param.sceneId) || !scene || scene.artistId !== experience.artistId) {
       issues.push({
         code: "PARAM_SCENE_MISSING",
         message: `Parameter "${param.label}" belongs to a scene that is not in this experience`,

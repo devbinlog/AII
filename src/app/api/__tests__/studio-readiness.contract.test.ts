@@ -20,6 +20,8 @@ import * as sceneRoute from "@/app/api/studio/scenes/[id]/route";
 import * as experiencesRoute from "@/app/api/studio/experiences/route";
 import * as experienceRoute from "@/app/api/studio/experiences/[id]/route";
 import * as publishRoute from "@/app/api/studio/experiences/[id]/publish/route";
+import * as campaignsRoute from "@/app/api/studio/campaigns/route";
+import * as campaignRoute from "@/app/api/studio/campaigns/[id]/route";
 import type { ExperienceReadiness } from "@/lib/studio/readiness";
 import type { Scene, SceneObject } from "@/types";
 
@@ -59,6 +61,7 @@ let fan: string;
 let admin: string;
 let editor: string;
 let otherAdmin: string;
+let otherArtistId: string;
 
 beforeAll(async () => {
   const repo = getRepository();
@@ -66,6 +69,7 @@ beforeAll(async () => {
   admin = await login("studio@freefallers.com");
   editor = await login("editor@freefallers.com");
   const other = await repo.artist.create({ slug: "readiness-other", name: "Other", bio: "", genre: [] }, "test");
+  otherArtistId = other.id;
   await repo.auth.createUser({ email: "readiness-other@example.com", password: "x", displayName: "Other Admin" });
   const signed = await repo.auth.signIn("readiness-other@example.com", "x");
   signed.session.role = "artist_admin";
@@ -193,5 +197,111 @@ describe("DELETE /api/studio/releases/:id keeps experience links intact", () => 
     const created = await releasesRoute.POST(req("/api/studio/releases", { method: "POST", token: admin, body: { title: "Mine", type: "single", releaseDate: "2026-12-01" } }));
     const releaseId = (await json<{ release: { id: string } }>(created)).release.id;
     expect((await releaseRoute.DELETE(req(`/api/studio/releases/${releaseId}`, { method: "DELETE", token: otherAdmin }), ctx(releaseId))).status).toBe(404);
+  });
+});
+
+describe("Cross-artist isolation (server-side, not UI filtering)", () => {
+  const FF_RELEASE = "rel_001";
+  const FF_EXPERIENCE = "exp_001";
+  const FF_CAMPAIGN = "cmp_001";
+
+  it("cannot link another artist's release on create or update", async () => {
+    const created = await experiencesRoute.POST(req("/api/studio/experiences", { method: "POST", token: otherAdmin, body: { title: "X", releaseId: FF_RELEASE } }));
+    expect(created.status).toBe(400);
+    const own = await newExperience(otherAdmin);
+    const patched = await experienceRoute.PATCH(req(`/api/studio/experiences/${own}`, { method: "PATCH", token: otherAdmin, body: { releaseId: FF_RELEASE } }), ctx(own));
+    expect(patched.status).toBe(400);
+    expect((await getRepository().experience.findById(own))!.releaseId).toBeNull();
+  });
+
+  it("cannot read or edit another artist's campaign, nor point its own campaign at a foreign experience", async () => {
+    expect((await campaignRoute.GET(req(`/api/studio/campaigns/${FF_CAMPAIGN}`, { token: otherAdmin }), ctx(FF_CAMPAIGN))).status).toBe(404);
+    expect((await campaignRoute.PATCH(req(`/api/studio/campaigns/${FF_CAMPAIGN}`, { method: "PATCH", token: otherAdmin, body: { title: "pwn" } }), ctx(FF_CAMPAIGN))).status).toBe(404);
+    const list = await json<{ campaigns: { artistId: string }[] }>(await campaignsRoute.GET(req("/api/studio/campaigns", { token: otherAdmin })));
+    expect(list.campaigns.every((c) => c.artistId === otherArtistId)).toBe(true);
+
+    const own = await newExperience(otherAdmin);
+    const cmp = await campaignsRoute.POST(req("/api/studio/campaigns", { method: "POST", token: otherAdmin, body: { title: "Own", slug: `own-${Date.now()}`, experienceId: own } }));
+    expect(cmp.status).toBe(201);
+    const cmpId = (await json<{ campaign: { id: string } }>(cmp)).campaign.id;
+    const repoint = await campaignRoute.PATCH(req(`/api/studio/campaigns/${cmpId}`, { method: "PATCH", token: otherAdmin, body: { experienceId: FF_EXPERIENCE } }), ctx(cmpId));
+    expect(repoint.status).toBe(400);
+    expect((await getRepository().campaign.findById(cmpId))!.experienceId).toBe(own);
+  });
+
+  it("artist roles cannot widen scope with ?artistId= on readiness (404, nothing leaked)", async () => {
+    const res = await publishRoute.GET(req(`/api/studio/experiences/${FF_EXPERIENCE}/publish?artistId=art_001`, { token: otherAdmin }), ctx(FF_EXPERIENCE));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("Moonwave");
+  });
+
+  it("readiness for an artist's own experience never includes another artist's campaigns or release", async () => {
+    const own = await newExperience(otherAdmin);
+    const r = (await readiness(own, otherAdmin)).body!;
+    expect(r.campaigns.every((c) => c.id !== FF_CAMPAIGN)).toBe(true);
+    expect(r.release).toBeNull();
+  });
+
+  it("a foreign scene smuggled into the draft (bypassing the API) blocks publishing and leaks nothing", async () => {
+    const repo = getRepository();
+    const foreign = await repo.scene.create({ artistId: otherArtistId, name: "SECRET_SCENE_NAME", canvasWidth: 1280, canvasHeight: 720 }, "test");
+    await repo.scene.save(foreign.id, { ...foreign.schema, objects: [{ ...textObject("obj_secret"), name: "SECRET_OBJECT_NAME" }] });
+    const id = await newExperience(admin);
+    await repo.experience.update(id, {
+      scenes: [{ sceneId: foreign.id, order: 0, transitionType: "cut", transitionDuration: 0 }],
+      editableParameters: [{ id: "ep_x", sceneId: foreign.id, objectId: "obj_secret", property: "style.fill", label: "P", type: "color", defaultValue: "#fff" }],
+    });
+
+    const res = await publishRoute.GET(req(`/api/studio/experiences/${id}/publish`, { token: admin }), ctx(id));
+    expect(res.status).toBe(200);
+    const raw = await res.text();
+    expect(raw).not.toContain("SECRET_SCENE_NAME");
+    expect(raw).not.toContain("SECRET_OBJECT_NAME");
+    const r = (JSON.parse(raw) as { readiness: ExperienceReadiness }).readiness;
+    expect(r.ready).toBe(false);
+    expect(r.issues.map((i) => i.code)).toEqual(expect.arrayContaining(["SCENE_FOREIGN", "PARAM_SCENE_MISSING"]));
+
+    const post = await publishRoute.POST(req(`/api/studio/experiences/${id}/publish`, { method: "POST", token: admin }), ctx(id));
+    expect(post.status).toBe(422);
+    expect(await post.text()).not.toContain("SECRET_");
+    expect(await repo.experience.listVersions(id)).toHaveLength(0);
+  });
+});
+
+describe("Publish integrity — the POST is authoritative (no TOCTOU on readiness)", () => {
+  it("a stale 'ready' readiness does not let a now-invalid draft publish; live version is untouched", async () => {
+    const repo = getRepository();
+    const scene = await sceneWithObject(admin);
+    const id = await newExperience(admin);
+    const seq = { scenes: [{ sceneId: scene.id, order: 0, transitionType: "fade", transitionDuration: 600 }] };
+    expect((await experienceRoute.PATCH(req(`/api/studio/experiences/${id}`, { method: "PATCH", token: admin, body: seq }), ctx(id))).status).toBe(200);
+    expect((await publishRoute.POST(req(`/api/studio/experiences/${id}/publish`, { method: "POST", token: admin }), ctx(id))).status).toBe(201);
+    const liveBefore = (await repo.experience.findById(id))!.currentVersionId;
+    expect(liveBefore).not.toBeNull();
+
+    expect((await readiness(id, admin)).body!.ready).toBe(true); // what a client would have cached
+    // State changes after the check: the draft loses its scenes.
+    expect((await experienceRoute.PATCH(req(`/api/studio/experiences/${id}`, { method: "PATCH", token: admin, body: { scenes: [] } }), ctx(id))).status).toBe(200);
+
+    // A forged body claiming readiness is ignored; the server re-validates the stored draft.
+    const post = await publishRoute.POST(req(`/api/studio/experiences/${id}/publish`, { method: "POST", token: admin, body: { ready: true, issues: [] } }), ctx(id));
+    expect(post.status).toBe(422);
+    expect((await repo.experience.findById(id))!.currentVersionId).toBe(liveBefore);
+    expect(await repo.experience.listVersions(id)).toHaveLength(1);
+  });
+
+  it("editors and fans cannot publish even when readiness says ready; other artists get 404", async () => {
+    const scene = await sceneWithObject(admin);
+    const id = await newExperience(admin);
+    await experienceRoute.PATCH(
+      req(`/api/studio/experiences/${id}`, { method: "PATCH", token: admin, body: { scenes: [{ sceneId: scene.id, order: 0, transitionType: "cut", transitionDuration: 0 }] } }),
+      ctx(id)
+    );
+    expect((await readiness(id, editor)).body!.ready).toBe(true);
+    const post = (token: string) => publishRoute.POST(req(`/api/studio/experiences/${id}/publish`, { method: "POST", token }), ctx(id));
+    expect((await post(editor)).status).toBe(403);
+    expect((await post(fan)).status).toBe(403);
+    expect((await post(otherAdmin)).status).toBe(404);
+    expect(await getRepository().experience.listVersions(id)).toHaveLength(0);
   });
 });

@@ -64,6 +64,12 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const release = await repo.release.findById(id);
   if (notOwned(ctx, release)) return apiError("NOT_FOUND", 404);
   if (release.status !== "draft") return apiError("CONFLICT", 409, "Only draft releases can be deleted");
+  // Keep Experience.releaseId links intact: unlink first, then delete.
+  const { experiences } = await repo.experience.listByArtist(ctx.artistId, { page: 1, pageSize: 200 });
+  const linked = experiences.filter((e) => e.releaseId === id);
+  if (linked.length > 0) {
+    return apiError("CONFLICT", 409, "Release is linked to an experience", linked.map((e) => e.title));
+  }
   await repo.release.delete(id);
   return NextResponse.json({ ok: true });
 }

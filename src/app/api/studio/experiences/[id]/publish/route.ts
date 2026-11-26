@@ -2,10 +2,27 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getRepository } from "@/lib/repository";
 import { apiError, isResponse, notOwned, requireStudio } from "@/lib/studio/api";
 import { validateExperienceForPublish } from "@/lib/studio/publish";
+import { loadExperienceReadiness } from "@/lib/studio/readiness-loader";
 import type { Scene } from "@/types";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
+}
+
+/**
+ * Publish readiness (dry run): the same checks POST enforces, plus whether the
+ * saved draft differs from the live version. Read-only; any Studio role may ask.
+ * Unsaved client edits are not seen — only what is stored on the server.
+ */
+export async function GET(req: NextRequest, { params }: RouteContext) {
+  const ctx = await requireStudio(req, "studio.view");
+  if (isResponse(ctx)) return ctx;
+  const { id } = await params;
+  const repo = getRepository();
+  const experience = await repo.experience.findById(id);
+  if (notOwned(ctx, experience)) return apiError("NOT_FOUND", 404);
+  const readiness = await loadExperienceReadiness(repo, experience);
+  return NextResponse.json({ ok: true, readiness });
 }
 
 /**
